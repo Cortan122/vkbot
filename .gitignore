@@ -1,0 +1,8 @@
+*
+!*.*
+!*/
+!makefile
+*.txt
+cJSON.h
+cJSON.c
+*.o
