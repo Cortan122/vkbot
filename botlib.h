@@ -1,4 +1,4 @@
-#include <cjson/cJSON.h>
+#include "cJSON.h"
 #include <signal.h>
 
 #define THROW(str,type,val) ({fprintf( \
