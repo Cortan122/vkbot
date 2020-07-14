@@ -32,6 +32,7 @@ char* Buffer$appendString(Buffer* b, char* str);
 int Buffer$appendFile(Buffer* b, char* path);
 char* Buffer$toString(Buffer* b);
 void Buffer$trimEnd(Buffer* b);
+void Buffer$untrim(Buffer* b);
 void Buffer$printf(Buffer* b, char* format, ...);
 void Buffer$puts(Buffer* b);
 

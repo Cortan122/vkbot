@@ -5,7 +5,7 @@ print potatobot whoami: botlib.o cJSON.o
 botlib.o: cJSON.h
 
 run: all
-	./$$(ls -t $$(ls *.c | sed 's/.c$$//') 2>/dev/null | head -n 1)
+	./$$(ls -t *.c | sed 's/.c$$//' | xargs -I R find R -prune 2>/dev/null | head -n 1)
 
 clean:
 	rm -f *.o print whoami potatobot *.txt cJSON.*

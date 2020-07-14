@@ -94,6 +94,10 @@ void Buffer$trimEnd(Buffer* b){
   while(b->len > 0 && b->body[b->len - 1] <= ' ')b->len--;
 }
 
+void Buffer$untrim(Buffer* b){
+  if(b->len && b->body[b->len-1] != '\n')Buffer$appendChar(b, '\n');
+}
+
 void Buffer$printf(Buffer* b, char* format, ...){
   int oldlen = b->len;
 
@@ -130,7 +134,15 @@ char* request(char* url){
   Z(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteHook));
   Z(curl_easy_setopt(curl, CURLOPT_WRITEDATA, &b));
   Z(curl_easy_setopt(curl, CURLOPT_TIMEOUT, 100L));
-  Z(curl_easy_perform(curl));
+  CURLcode retcode = curl_easy_perform(curl);
+  while(retcode == CURLE_OPERATION_TIMEDOUT){
+    fprintf(stderr, "curl request timed out: buffer has %d bytes\n", b.len);
+    Buffer$reset(&b);
+    // waitForInternet()
+    system("ping -c 1 1.1.1.1"); // todo? (i give up)
+    retcode = curl_easy_perform(curl);
+  }
+  if(retcode)THROW("curl_easy_perform(curl)", "%s", curl_easy_strerror(retcode));
 
   curl_easy_cleanup(curl);
   return Buffer$toString(&b);

@@ -19,6 +19,13 @@
 
 #ifdef USE_PTHREADS
   #include <pthread.h>
+  #define START_THREAD(func, arg) ({ \
+    pthread_t threadId; \
+    Z(pthread_create(&threadId, NULL, func, arg)); \
+    Z(pthread_detach(threadId)); \
+  })
+#else
+  #define START_THREAD(func, arg) func(arg)
 #endif
 
 char* getTimeString(){
@@ -96,12 +103,18 @@ typedef struct Potato {
   int user;
   int chat;
   int edit; // this is a bool for passing to threads
+  cJSON* json; // also for passing to threads
 } Potato;
 
 Potato* Potato$new(cJSON* json){
   Potato* p = malloc(sizeof(Potato));
 
-  p->text = strdup(E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5)))));
+  cJSON* str = E(cJSON_GetArrayItem(json, 5));
+  Z(!cJSON_IsString(str));
+  p->text = E(str->valuestring);
+  str->valuestring = NULL;
+
+  p->json = NULL;
   p->time = E(cJSON_GetArrayItem(json, 4))->valueint;
 
   int t = E(cJSON_GetArrayItem(json, 3))->valueint;
@@ -111,6 +124,28 @@ Potato* Potato$new(cJSON* json){
   }else{
     p->user = t;
     p->chat = 0;
+  }
+
+  cJSON* attachments = E(cJSON_GetArrayItem(json, 7));
+  Z(!cJSON_IsObject(attachments));
+  if(cJSON_GetArraySize(attachments)){
+    char* attach1_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(attachments, "attach1_type"));
+    int isSticker = attach1_type && strcmp(attach1_type, "sticker") == 0;
+    if(isSticker){
+      Buffer b = Buffer$new();
+      Buffer$appendString(&b, p->text);
+      Buffer$untrim(&b);
+      Buffer$printf(
+        &b, "\n➕ https://vk.com/sticker/1-%s-512b\n",
+        E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(attachments, "attach1"))))
+      );
+      free(p->text);
+      p->text = Buffer$toString(&b);
+    }
+    if(!isSticker || cJSON_GetObjectItemCaseSensitive(attachments, "reply")){
+      // p->json = E(cJSON_DetachItemViaPointer(json, attachments));
+      // START_THREAD(, p);
+    }
   }
 
   return p;
@@ -252,7 +287,8 @@ void* sendPotato_thread(void* voidptr){
 
   Buffer b = Buffer$new();
   Buffer$appendString(&b, p->text);
-  Buffer$appendString(&b, "\n\n© ");
+  if(!(b.len && b.body[b.len-1] == '\n'))Buffer$appendString(&b, "\n\n");
+  Buffer$appendString(&b, "© ");
   Buffer$appendString(&b, E(getUserName(p->user)));
   if(posttime->tm_yday != today->tm_yday || posttime->tm_year != today->tm_year){
     Buffer$printf(&b, "%02d.%02d.%04d ", posttime->tm_mday, posttime->tm_mon+1, posttime->tm_year+1900);
@@ -277,13 +313,7 @@ void sendPotato(Potato* p, int edit){
     printMallocStats();
   }else if(edit)p = NULL+1;
 
-  #ifdef USE_PTHREADS
-    pthread_t threadId;
-    Z(pthread_create(&threadId, NULL, sendPotato_thread, p));
-    Z(pthread_detach(threadId));
-  #else
-    sendPotato_thread(p);
-  #endif
+  START_THREAD(sendPotato_thread, p);
   return;
   finally:
   perror("");
