@@ -121,6 +121,12 @@ void Buffer$puts(Buffer* b){
   puts(Buffer$toString(b));
 }
 
+int Buffer$endsWith(Buffer* b, char* needle){
+  int len = strlen(needle);
+  if(b->len < len)return 0;
+  return strcmp(needle, b->body + b->len-len) == 0;
+}
+
 static int curlWriteHook(void* ptr, int size, int nmemb, Buffer *b){
   Buffer$append(b, ptr, size*nmemb);
   return size*nmemb;

@@ -35,6 +35,7 @@ void Buffer$trimEnd(Buffer* b);
 void Buffer$untrim(Buffer* b);
 void Buffer$printf(Buffer* b, char* format, ...);
 void Buffer$puts(Buffer* b);
+int Buffer$endsWith(Buffer* b, char* needle);
 
 char* request(char* url);
 int printJson(cJSON* json);

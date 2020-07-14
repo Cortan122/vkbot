@@ -3,6 +3,8 @@
 // #define USE_PTHREADS
 // #define USE_PYBOT
 
+#define MY_ID 560101729
+
 #ifdef USE_PYBOT
   #define BOT_TOK "pybottoken.txt"
   #define BOT_DEST "2000000001"
@@ -27,6 +29,33 @@
 #else
   #define START_THREAD(func, arg) func(arg)
 #endif
+
+#define ATTACHMENT_LINK(emoji) ({cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type)); \
+  Buffer$printf(b, "%s https://vk.com/%s%d_%d", emoji, type, \
+    E(cJSON_GetObjectItemCaseSensitive(inner, "owner_id"))->valueint, \
+    E(cJSON_GetObjectItemCaseSensitive(inner, "id"))->valueint \
+  );})
+
+#define ATTACHMENT_LINK_fromid(emoji) ({cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type)); \
+  Buffer$printf(b, "%s https://vk.com/%s%d_%d", emoji, type, \
+    E(cJSON_GetObjectItemCaseSensitive(inner, "from_id"))->valueint, \
+    E(cJSON_GetObjectItemCaseSensitive(inner, "id"))->valueint \
+  );})
+
+#define ATTACHMENT_URL(emoji) ({cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type)); \
+  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(inner, "url")))));})
+
+#define ATTACHMENT_URL_linkmp3(emoji) ({cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type)); \
+  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(inner, "link_mp3")))));})
+
+#define ATTACHMENT_MSG(emoji, msg) if(msg){ \
+  int prevlen = prefix->len; \
+  if(Buffer$endsWith(b, pre))b->len -= prevlen; \
+  Buffer$appendString(prefix, emoji); \
+  formatAttachments(b, msg, prefix); \
+  prefix->len = prevlen; \
+  pre = Buffer$toString(prefix); \
+}
 
 char* getTimeString(){
   time_t rawtime = time(NULL);
@@ -103,8 +132,218 @@ typedef struct Potato {
   int user;
   int chat;
   int edit; // this is a bool for passing to threads
-  cJSON* json; // also for passing to threads
+  int id; // also for passing to threads
 } Potato;
+
+LinkedDict* userDict = NULL;
+LinkedDict* chatDict = NULL;
+
+char* getUserName(int id){
+  if(id == 0)return NULL;
+  char* res = LinkedDict$get(chatDict, id);
+  if(res)return res;
+
+  Buffer b = Buffer$new();
+  cJSON* json;
+  cJSON* obj;
+  if(id < 0){
+    Buffer$printf(&b, "%d", -id);
+    json = E(apiRequest("groups.getById", "bottoken.txt", "group_id", Buffer$toString(&b), NULL));
+    obj = E(cJSON_GetArrayItem(json, 0));
+    Buffer$reset(&b);
+    Buffer$printf(&b, "https://vk.com/%s/",
+      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "screen_name"))))
+    );
+  }else{
+    Buffer$printf(&b, "%d", id);
+    json = E(apiRequest("users.get", "bottoken.txt", "user_ids", Buffer$toString(&b), "fields", "domain", NULL));
+    obj = E(cJSON_GetArrayItem(json, 0));
+    Buffer$reset(&b);
+    Buffer$printf(&b, "@%s (%s %s)",
+      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "domain")))),
+      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "first_name")))),
+      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "last_name"))))
+    );
+  }
+
+  cJSON_Delete(json);
+  res = Buffer$toString(&b);
+  LinkedDict$add(chatDict, id, res);
+  finally:
+  if(res == NULL)Buffer$delete(&b);
+  return res;
+}
+
+char* getChatName(int id){
+  if(id > 2000000000)id -= 2000000000;
+  else return getUserName(id);
+  char* res = LinkedDict$get(chatDict, id);
+  if(res)return res;
+
+  Buffer b = Buffer$new();
+  Buffer$printf(&b, "%d", id);
+  cJSON* json = E(apiRequest("messages.getChat", "token.txt", "chat_id", Buffer$toString(&b), NULL));
+  res = strdup(E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(json, "title")))));
+  cJSON_Delete(json);
+
+  LinkedDict$add(chatDict, id, res);
+  finally:
+  Buffer$delete(&b);
+  return res;
+}
+
+int formatCopyrightString(Buffer* b, int user, int chat, time_t date){
+  time_t rawtime = time(NULL);
+  struct tm* today = localtime(&rawtime);
+  int today_tm_yday = today->tm_yday;
+  int today_tm_year = today->tm_year;
+  struct tm* posttime = localtime(&date);
+
+  Buffer$appendString(b, "© ");
+  Buffer$appendString(b, E(getUserName(user)));
+  if(posttime->tm_yday != today_tm_yday || posttime->tm_year != today_tm_year){
+    Buffer$printf(b, " %02d.%02d.%04d", posttime->tm_mday, posttime->tm_mon+1, posttime->tm_year+1900);
+  }
+  Buffer$printf(b, " %d:%02d ", posttime->tm_hour, posttime->tm_min);
+  if(chat != user)Buffer$printf(b, "(%s) ", E(getChatName(chat)));
+
+  return 0;
+  finally:
+  return 1;
+}
+
+char* getBestPhotoUrl(cJSON* arr){
+  char* rom = "smxyzw";
+  char* res = NULL;
+  int resIndex = -1;
+  cJSON* e;
+  cJSON_ArrayForEach(e, arr){
+    char type = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(e, "type"))))[0];
+    int i = 0;
+    while(rom[i] && rom[i] != type)i++;
+    if(!rom[i])i = -1;
+    if(resIndex < i){
+      resIndex = i;
+      res = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(e, "url"))));
+    }
+  }
+  return res;
+  finally:
+  return NULL;
+}
+
+void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
+  char* pre = Buffer$toString(prefix);
+
+  char* text = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(json, "text"))));
+  if(text[0]){
+    Buffer$untrim(b);
+    Buffer$appendString(b, pre);
+  }
+  for(int i = 0; text[i]; i++){
+    Buffer$appendChar(b, text[i]);
+    if(text[i] == '\n')Buffer$appendString(b, pre);
+  }
+  if(text[0])Buffer$printf(b, "\n%s\n%s", pre, pre);
+
+  cJSON* reply = cJSON_GetObjectItemCaseSensitive(json, "reply_message");
+  ATTACHMENT_MSG("↩ ", reply);
+
+  cJSON* fwd = cJSON_GetObjectItemCaseSensitive(json, "fwd_messages");
+  cJSON* msg;
+  cJSON_ArrayForEach(msg, fwd){
+    ATTACHMENT_MSG("➕ ", msg);
+  }
+
+  cJSON* attachments = cJSON_GetObjectItemCaseSensitive(json, "attachments");
+  cJSON* attachment;
+  cJSON_ArrayForEach(attachment, attachments){
+    if(!Buffer$endsWith(b, pre)){
+      Buffer$untrim(b);
+      Buffer$appendString(b, pre);
+    }
+
+    char* type = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(attachment, "type"))));
+    if(strcmp(type, "photo") == 0){
+      Buffer$printf(b, "🌅 %s",
+        E(getBestPhotoUrl(E(cJSON_GetObjectItemCaseSensitive(E(cJSON_GetObjectItemCaseSensitive(attachment, type)), "sizes"))))
+      );
+    }else if(strcmp(type, "video") == 0){
+      ATTACHMENT_LINK("📽");
+    }else if(strcmp(type, "doc") == 0){
+      ATTACHMENT_LINK("📄"); // or ATTACHMENT_URL("📄");
+    }else if(strcmp(type, "graffiti") == 0){
+      ATTACHMENT_LINK("🎨"); // or ATTACHMENT_URL("🎨");
+    }else if(strcmp(type, "poll") == 0){
+      ATTACHMENT_LINK("✅");
+    }else if(strcmp(type, "audio") == 0){
+      ATTACHMENT_URL("🎵");
+    }else if(strcmp(type, "link") == 0){
+      ATTACHMENT_URL("🔗");
+    }else if(strcmp(type, "wall") == 0){
+      ATTACHMENT_LINK_fromid("🧱");
+    }else if(strcmp(type, "audio_message") == 0){
+      ATTACHMENT_URL_linkmp3("🎤");
+    }else if(strcmp(type, "sticker") == 0){
+      Buffer$printf(b, "➕ https://vk.com/sticker/1-%d-512b",
+        E(cJSON_GetObjectItemCaseSensitive(E(cJSON_GetObjectItemCaseSensitive(attachment, type)), "sticker_id"))->valueint
+      );
+    }else{
+      Buffer$printf(b, "❓ какойето непонятное вложение типа \"%s\"", type);
+      printJson(attachment);
+    }
+  }
+
+  if(strlen(pre)){
+    if(!Buffer$endsWith(b, pre)){
+      Buffer$untrim(b);
+      Buffer$appendString(b, pre);
+    }
+    Z(formatCopyrightString(b,
+      E(cJSON_GetObjectItemCaseSensitive(json, "from_id"))->valueint,
+      E(cJSON_GetObjectItemCaseSensitive(json, "peer_id"))->valueint,
+      E(cJSON_GetObjectItemCaseSensitive(json, "date"))->valueint
+    ));
+  }else{
+    Buffer$untrim(b);
+    // Buffer$puts(b);
+  }
+
+  finally:;
+}
+
+void* formatAttachments_thread(void* voidptr){
+  Potato* p = voidptr;
+  cJSON* response = NULL;
+  Buffer b = Buffer$new();
+
+  Buffer$printf(&b, "%d", p->id);
+  response = E(apiRequest(
+    "messages.getById", "token.txt",
+    "message_ids", Buffer$toString(&b),
+    "fields", "domain",
+    "preview_length", "0",
+    "extended", "1",
+    NULL
+  ));
+  Buffer$reset(&b);
+
+  // todo: cJSON_GetObjectItemCaseSensitive(response, "profiles")
+
+  Buffer prefixBuffer = Buffer$new();
+  formatAttachments(&b, E(cJSON_GetArrayItem(E(cJSON_GetObjectItemCaseSensitive(response, "items")), 0)), &prefixBuffer);
+  Buffer$delete(&prefixBuffer);
+
+  free(p->text);
+  p->text = Buffer$toString(&b);
+  cJSON_Delete(response);
+  return NULL;
+
+  finally:
+  Buffer$delete(&b);
+  cJSON_Delete(response);
+  return NULL;
+}
 
 Potato* Potato$new(cJSON* json){
   Potato* p = malloc(sizeof(Potato));
@@ -114,7 +353,7 @@ Potato* Potato$new(cJSON* json){
   p->text = E(str->valuestring);
   str->valuestring = NULL;
 
-  p->json = NULL;
+  p->id = E(cJSON_GetArrayItem(json, 1))->valueint;
   p->time = E(cJSON_GetArrayItem(json, 4))->valueint;
 
   int t = E(cJSON_GetArrayItem(json, 3))->valueint;
@@ -122,8 +361,9 @@ Potato* Potato$new(cJSON* json){
     p->user = atoi(E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(E(cJSON_GetArrayItem(json, 6)), "from")))));
     p->chat = t;
   }else{
-    p->user = t;
-    p->chat = 0;
+    int flags = E(cJSON_GetArrayItem(json, 2))->valueint;
+    p->user = (flags&2) ? MY_ID : t;
+    p->chat = t;
   }
 
   cJSON* attachments = E(cJSON_GetArrayItem(json, 7));
@@ -143,8 +383,7 @@ Potato* Potato$new(cJSON* json){
       p->text = Buffer$toString(&b);
     }
     if(!isSticker || cJSON_GetObjectItemCaseSensitive(attachments, "reply")){
-      // p->json = E(cJSON_DetachItemViaPointer(json, attachments));
-      // START_THREAD(, p);
+      START_THREAD(formatAttachments_thread, p);
     }
   }
 
@@ -226,49 +465,6 @@ Potato* Bag$get(Bag* b, int id){
 }
 
 Bag* potatoBag = NULL;
-LinkedDict* userDict = NULL;
-LinkedDict* chatDict = NULL;
-
-char* getUserName(int id){
-  if(id <= 0)return NULL;
-  char* res = LinkedDict$get(chatDict, id);
-  if(res)return res;
-
-  Buffer b = Buffer$new();
-  Buffer$printf(&b, "%d", id);
-  cJSON* json = E(apiRequest("users.get", "bottoken.txt", "user_ids", Buffer$toString(&b), "fields", "domain", NULL));
-  cJSON* obj = E(cJSON_GetArrayItem(json, 0));
-  Buffer$reset(&b);
-  Buffer$printf(&b, "@%s (%s %s) ",
-    E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "domain")))),
-    E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "first_name")))),
-    E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "last_name"))))
-  );
-  cJSON_Delete(json);
-
-  res = Buffer$toString(&b);
-  LinkedDict$add(chatDict, id, res);
-  finally:
-  if(res == NULL)Buffer$delete(&b);
-  return res;
-}
-
-char* getChatName(int id){
-  if(id > 2000000000)id -= 2000000000;
-  char* res = LinkedDict$get(chatDict, id);
-  if(res)return res;
-
-  Buffer b = Buffer$new();
-  Buffer$printf(&b, "%d", id);
-  cJSON* json = E(apiRequest("messages.getChat", "token.txt", "chat_id", Buffer$toString(&b), NULL));
-  res = strdup(E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(json, "title")))));
-  cJSON_Delete(json);
-
-  LinkedDict$add(chatDict, id, res);
-  finally:
-  Buffer$delete(&b);
-  return res;
-}
 
 void* sendPotato_thread(void* voidptr){
   Potato* p = voidptr;
@@ -288,13 +484,7 @@ void* sendPotato_thread(void* voidptr){
   Buffer b = Buffer$new();
   Buffer$appendString(&b, p->text);
   if(!(b.len && b.body[b.len-1] == '\n'))Buffer$appendString(&b, "\n\n");
-  Buffer$appendString(&b, "© ");
-  Buffer$appendString(&b, E(getUserName(p->user)));
-  if(posttime->tm_yday != today->tm_yday || posttime->tm_year != today->tm_year){
-    Buffer$printf(&b, "%02d.%02d.%04d ", posttime->tm_mday, posttime->tm_mon+1, posttime->tm_year+1900);
-  }
-  Buffer$printf(&b, "%d:%02d ", posttime->tm_hour, posttime->tm_min);
-  if(p->chat)Buffer$printf(&b, "(%s) ", E(getChatName(p->chat)));
+  Z(formatCopyrightString(&b, p->user, p->chat, p->time));
   if(p->edit)Buffer$appendString(&b, "[edit]");
 
   sendMessage(BOT_TOK, BOT_DEST, "disable_mentions", "1", "message", Buffer$toString(&b));
@@ -307,7 +497,7 @@ void* sendPotato_thread(void* voidptr){
 
 void sendPotato(Potato* p, int edit){
   if(p){
-    if(p->user == 560101729 && p->chat != 2000000008)return;
+    if(p->user == MY_ID && p->chat != 2000000008)return;
     p->edit = edit;
     printf("A message from \e[32m%d\e[0m just got deleted at %s\n", p->user, getTimeString());
     printMallocStats();
