@@ -37,7 +37,7 @@ void Buffer$printf(Buffer* b, char* format, ...);
 void Buffer$puts(Buffer* b);
 int Buffer$endsWith(Buffer* b, char* needle);
 
-char* request(char* url);
+char* request(char* url, int post);
 int printJson(cJSON* json);
 cJSON* apiRequest(char* endpoint, char* token, ...);
 void longpoll(char* token, JSONCallback callback);

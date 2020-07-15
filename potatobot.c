@@ -18,6 +18,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #ifdef USE_PTHREADS
   #include <pthread.h>
@@ -51,9 +52,11 @@
 #define ATTACHMENT_MSG(emoji, msg) if(msg){ \
   int prevlen = prefix->len; \
   if(Buffer$endsWith(b, pre))b->len -= prevlen; \
+  if(prefix->len)prefix->len--; \
   Buffer$appendString(prefix, emoji); \
   formatAttachments(b, msg, prefix); \
   prefix->len = prevlen; \
+  if(prefix->len)prefix->body[prefix->len - 1] = ' '; \
   pre = Buffer$toString(prefix); \
 }
 
@@ -321,6 +324,9 @@ void* formatAttachments_thread(void* voidptr){
   cJSON* response = NULL;
   Buffer b = Buffer$new();
 
+  struct timeval start;
+  gettimeofday(&start, NULL);
+
   Buffer$printf(&b, "%d", p->id);
   response = E(apiRequest(
     "messages.getById", "token.txt",
@@ -337,6 +343,16 @@ void* formatAttachments_thread(void* voidptr){
   Buffer prefixBuffer = Buffer$new();
   formatAttachments(&b, E(cJSON_GetArrayItem(E(cJSON_GetObjectItemCaseSensitive(response, "items")), 0)), &prefixBuffer);
   Buffer$delete(&prefixBuffer);
+
+  struct timeval stop;
+  gettimeofday(&stop, NULL);
+  printf("Formatting a long message from \e[32m%d\e[0m took \e[34m%.3f\e[0ms for \e[33m%d\e[0m bytes at %s\n",
+    p->user,
+    ((stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec)/1000000.0,
+    b.len,
+    getTimeString()
+  );
+  fflush(stdout);
 
   free(p->text);
   p->text = Buffer$toString(&b);

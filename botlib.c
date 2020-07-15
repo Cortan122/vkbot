@@ -132,10 +132,20 @@ static int curlWriteHook(void* ptr, int size, int nmemb, Buffer *b){
   return size*nmemb;
 }
 
-char* request(char* url){
+char* request(char* url, int post){
   CURL* curl = E(curl_easy_init());
 
   Buffer b = Buffer$new();
+  if(post){
+    // may (will) segfault if url is pointing to rom
+    char* urlargs = url;
+    while(*urlargs && *urlargs != '?')urlargs++;
+    if(*urlargs == '?'){
+      *urlargs = '\0';
+      urlargs++;
+      curl_easy_setopt(curl, CURLOPT_POSTFIELDS, urlargs);
+    }
+  }
   Z(curl_easy_setopt(curl, CURLOPT_URL, url));
   Z(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteHook));
   Z(curl_easy_setopt(curl, CURLOPT_WRITEDATA, &b));
@@ -205,7 +215,7 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
   }
   va_end(ap);
 
-  char* res = E(request(Buffer$toString(&b)));
+  char* res = E(request(Buffer$toString(&b), 1));
   Buffer$delete(&b);
   cJSON* json = E(cJSON_Parse(res));
   free(res);
@@ -260,7 +270,7 @@ void longpoll(char* token, JSONCallback callback){
       while(b.len > 0 && b.body[b.len - 1] != '=')b.len--;
       Buffer$printf(&b, "%d", ts);
     }
-    char* res = E(request(Buffer$toString(&b)));
+    char* res = E(request(Buffer$toString(&b), 0));
     cJSON* json = E(cJSON_Parse(res));
     free(res);
     // Z(printJson(json));
