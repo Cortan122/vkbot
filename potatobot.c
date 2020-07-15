@@ -30,23 +30,23 @@
   #define START_THREAD(func, arg) func(arg)
 #endif
 
-#define ATTACHMENT_LINK(emoji) ({cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type)); \
+#define ATTACHMENT_LINK(emoji) \
   Buffer$printf(b, "%s https://vk.com/%s%d_%d", emoji, type, \
     E(cJSON_GetObjectItemCaseSensitive(inner, "owner_id"))->valueint, \
     E(cJSON_GetObjectItemCaseSensitive(inner, "id"))->valueint \
-  );})
+  )
 
-#define ATTACHMENT_LINK_fromid(emoji) ({cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type)); \
+#define ATTACHMENT_LINK_fromid(emoji) \
   Buffer$printf(b, "%s https://vk.com/%s%d_%d", emoji, type, \
     E(cJSON_GetObjectItemCaseSensitive(inner, "from_id"))->valueint, \
     E(cJSON_GetObjectItemCaseSensitive(inner, "id"))->valueint \
-  );})
+  )
 
-#define ATTACHMENT_URL(emoji) ({cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type)); \
-  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(inner, "url")))));})
+#define ATTACHMENT_URL(emoji) \
+  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(inner, "url")))))
 
-#define ATTACHMENT_URL_linkmp3(emoji) ({cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type)); \
-  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(inner, "link_mp3")))));})
+#define ATTACHMENT_URL_linkmp3(emoji) \
+  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(inner, "link_mp3")))))
 
 #define ATTACHMENT_MSG(emoji, msg) if(msg){ \
   int prevlen = prefix->len; \
@@ -264,6 +264,7 @@ void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
     }
 
     char* type = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(attachment, "type"))));
+    cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type));
     if(strcmp(type, "photo") == 0){
       Buffer$printf(b, "🌅 %s",
         E(getBestPhotoUrl(E(cJSON_GetObjectItemCaseSensitive(E(cJSON_GetObjectItemCaseSensitive(attachment, type)), "sizes"))))
@@ -283,12 +284,13 @@ void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
     }else if(strcmp(type, "wall") == 0){
       ATTACHMENT_LINK_fromid("🧱");
     }else if(strcmp(type, "audio_message") == 0){
-      ATTACHMENT_URL_linkmp3("🎤");
+      ATTACHMENT_URL_linkmp3("🎤"); // todo: attach
     }else if(strcmp(type, "sticker") == 0){
       Buffer$printf(b, "➕ https://vk.com/sticker/1-%d-512b",
         E(cJSON_GetObjectItemCaseSensitive(E(cJSON_GetObjectItemCaseSensitive(attachment, type)), "sticker_id"))->valueint
       );
     }else{
+      // audio_playlist
       Buffer$printf(b, "❓ какойето непонятное вложение типа \"%s\"", type);
       printJson(attachment);
     }

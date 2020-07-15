@@ -145,7 +145,7 @@ char* request(char* url){
     fprintf(stderr, "curl request timed out: buffer has %d bytes\n", b.len);
     Buffer$reset(&b);
     // waitForInternet()
-    system("ping -c 1 1.1.1.1"); // todo? (i give up)
+    while(system("ping -c 1 1.1.1.1")); // todo? (i give up)
     retcode = curl_easy_perform(curl);
   }
   if(retcode)THROW("curl_easy_perform(curl)", "%s", curl_easy_strerror(retcode));
