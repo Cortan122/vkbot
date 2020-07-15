@@ -84,6 +84,8 @@ void printMallocStats(){
   double d1 = humanredableSize(info.uordblks, &c1);
   double d2 = humanredableSize(info.fordblks + info.uordblks, &c2);
   fprintf(stderr, "Memory usage at %s \e[33m%3.1f\e[0m%c / \e[33m%3.1f\e[0m%c\n", getTimeString(), d1,c1, d2,c2);
+  fflush(stdout);
+  fflush(stderr);
   // todo: /proc/self/statm
 }
 
@@ -536,6 +538,7 @@ void potato_init(){
   chatDict = LinkedDict$new(0, NULL);
 
   printf("Starting \x1b[93mpotatobot\x1b[0m at %s\n", getTimeString());
+  fflush(stdout);
 }
 
 void potato_deinit(){

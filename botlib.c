@@ -143,6 +143,7 @@ char* request(char* url){
   CURLcode retcode = curl_easy_perform(curl);
   while(retcode == CURLE_OPERATION_TIMEDOUT){
     fprintf(stderr, "curl request timed out: buffer has %d bytes\n", b.len);
+    fflush(stderr);
     Buffer$reset(&b);
     // waitForInternet()
     while(system("ping -c 1 1.1.1.1")); // todo? (i give up)
@@ -175,6 +176,7 @@ int printJson(cJSON* json){
     }else putchar(str[i]);
   }
   puts("\e[0m");
+  fflush(stdout);
   free(str);
   return 0;
 
