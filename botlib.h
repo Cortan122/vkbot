@@ -37,6 +37,9 @@ void Buffer$printf(Buffer* b, char* format, ...);
 void Buffer$puts(Buffer* b);
 int Buffer$endsWith(Buffer* b, char* needle);
 
+char* getTimeString();
+void waitForInternet();
+
 char* request(char* url, int post);
 int printJson(cJSON* json);
 cJSON* apiRequest(char* endpoint, char* token, ...);

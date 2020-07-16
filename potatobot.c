@@ -60,14 +60,6 @@
   pre = Buffer$toString(prefix); \
 }
 
-char* getTimeString(){
-  time_t rawtime = time(NULL);
-  struct tm* timeinfo = localtime(&rawtime);
-  static char result[30];
-  strftime(result, sizeof(result), "\e[36m%d.%m.%Y %T\e[0m", timeinfo);
-  return result;
-}
-
 double humanredableSize(int bytes, char* out){
   static const char sizes[] = " kMGTPE";
   double len = bytes;

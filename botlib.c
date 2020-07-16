@@ -132,6 +132,23 @@ static int curlWriteHook(void* ptr, int size, int nmemb, Buffer *b){
   return size*nmemb;
 }
 
+char* getTimeString(){
+  time_t rawtime = time(NULL);
+  struct tm* timeinfo = localtime(&rawtime);
+  static char result[30];
+  strftime(result, sizeof(result), "\e[36m%d.%m.%Y %T\e[0m", timeinfo);
+  return result;
+}
+
+void waitForInternet(){
+  // todo? (i give up)
+  fprintf(stderr, "Waiting for internet at %s\n", getTimeString());
+  fflush(stderr);
+  while(system("ping -c 1 1.1.1.1 >/dev/null"));
+  fprintf(stderr, "Done waiting for internet at %s\n", getTimeString());
+  fflush(stderr);
+}
+
 char* request(char* url, int post){
   CURL* curl = E(curl_easy_init());
 
@@ -155,8 +172,7 @@ char* request(char* url, int post){
     fprintf(stderr, "curl request timed out: buffer has %d bytes\n", b.len);
     fflush(stderr);
     Buffer$reset(&b);
-    // waitForInternet()
-    while(system("ping -c 1 1.1.1.1")); // todo? (i give up)
+    waitForInternet();
     retcode = curl_easy_perform(curl);
   }
   if(retcode)THROW("curl_easy_perform(curl)", "%s", curl_easy_strerror(retcode));
