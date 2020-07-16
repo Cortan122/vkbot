@@ -177,6 +177,7 @@ char* getUserName(int id){
 }
 
 char* getChatName(int id){
+  if(id == 0)return "какаято непонятная беседа";
   if(id > 2000000000)id -= 2000000000;
   else return getUserName(id);
   char* res = LinkedDict$get(chatDict, id);
@@ -303,9 +304,10 @@ void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
       Buffer$untrim(b);
       Buffer$appendString(b, pre);
     }
+    cJSON* peer_id = cJSON_GetObjectItemCaseSensitive(json, "peer_id");
     Z(formatCopyrightString(b,
       E(cJSON_GetObjectItemCaseSensitive(json, "from_id"))->valueint,
-      E(cJSON_GetObjectItemCaseSensitive(json, "peer_id"))->valueint,
+      peer_id ? peer_id->valueint : 0,
       E(cJSON_GetObjectItemCaseSensitive(json, "date"))->valueint
     ));
   }else{
