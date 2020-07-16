@@ -60,6 +60,12 @@
   pre = Buffer$toString(prefix); \
 }
 
+#define FROMAT_USER(b, obj) Buffer$printf(&b, "@%s (%s %s)", \
+  E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "domain")))), \
+  E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "first_name")))), \
+  E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "last_name")))) \
+)
+
 double humanredableSize(int bytes, char* out){
   static const char sizes[] = " kMGTPE";
   double len = bytes;
@@ -79,9 +85,12 @@ void printMallocStats(){
   double d1 = humanredableSize(info.uordblks, &c1);
   double d2 = humanredableSize(info.fordblks + info.uordblks, &c2);
   fprintf(stderr, "Memory usage at %s \e[33m%3.1f\e[0m%c / \e[33m%3.1f\e[0m%c\n", getTimeString(), d1,c1, d2,c2);
+  Buffer b = Buffer$new();
+  Buffer$printf(&b, "grep VmRSS /proc/%d/status", getpid()); // todo?
+  system(Buffer$toString(&b));
+  Buffer$delete(&b);
   fflush(stdout);
   fflush(stderr);
-  // todo: /proc/self/statm
 }
 
 typedef struct LinkedDict {
@@ -156,11 +165,7 @@ char* getUserName(int id){
     json = E(apiRequest("users.get", "bottoken.txt", "user_ids", Buffer$toString(&b), "fields", "domain", NULL));
     obj = E(cJSON_GetArrayItem(json, 0));
     Buffer$reset(&b);
-    Buffer$printf(&b, "@%s (%s %s)",
-      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "domain")))),
-      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "first_name")))),
-      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "last_name"))))
-    );
+    FROMAT_USER(b, obj);
   }
 
   cJSON_Delete(json);
@@ -330,7 +335,15 @@ void* formatAttachments_thread(void* voidptr){
   ));
   Buffer$reset(&b);
 
-  // todo: cJSON_GetObjectItemCaseSensitive(response, "profiles")
+  cJSON* profiles = cJSON_GetObjectItemCaseSensitive(response, "profiles");
+  cJSON* profile;
+  cJSON_ArrayForEach(profile, profiles){
+    int id = E(cJSON_GetObjectItemCaseSensitive(profile, "id"))->valueint;
+    if(LinkedDict$get(chatDict, id))continue;
+    Buffer userBuff = Buffer$new();
+    FROMAT_USER(userBuff, profile);
+    LinkedDict$add(chatDict, id, Buffer$toString(&userBuff));
+  }
 
   Buffer prefixBuffer = Buffer$new();
   formatAttachments(&b, E(cJSON_GetArrayItem(E(cJSON_GetObjectItemCaseSensitive(response, "items")), 0)), &prefixBuffer);
