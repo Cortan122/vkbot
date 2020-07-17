@@ -353,7 +353,8 @@ void* formatAttachments_thread(void* voidptr){
 
   struct timeval stop;
   gettimeofday(&stop, NULL);
-  printf("Formatting a long message from \e[32m%d\e[0m took \e[34m%.3f\e[0ms for \e[33m%d\e[0m bytes at %s\n",
+  printf("Formatting a long message \e[35mid%d\e[0m from \e[32m%d\e[0m took \e[34m%.3f\e[0ms for \e[33m%d\e[0m bytes at %s\n",
+    p->id,
     p->user,
     ((stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec)/1000000.0,
     b.len,
@@ -526,7 +527,7 @@ void sendPotato(Potato* p, int edit){
   if(p){
     if(p->user == MY_ID && p->chat != 2000000008)return;
     p->edit = edit;
-    printf("A message from \e[32m%d\e[0m just got deleted at %s\n", p->user, getTimeString());
+    printf("A message \e[35mid%d\e[0m from \e[32m%d\e[0m just got deleted at %s\n", p->id, p->user, getTimeString());
     printMallocStats();
   }else if(edit)p = NULL+1;
 
@@ -547,8 +548,12 @@ void potato_callback(cJSON* json){
   }else if(type == 4){
     Bag$add(potatoBag, id, E(Potato$new(json)));
   }else if(type == 5){
-    sendPotato(Bag$get(potatoBag, id), 1);
-    Bag$add(potatoBag, id, E(Potato$new(json)));
+    Potato* old = Bag$get(potatoBag, id);
+    if(old == NULL || strcmp(E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5)))), old->text) != 0){
+      sendPotato(old, 1);
+      old = E(Potato$new(json));
+    }
+    Bag$add(potatoBag, id, old);
   }
 
   finally:

@@ -6,6 +6,7 @@
 #include <curl/curl.h>
 #include <stdarg.h>
 
+#include <unistd.h>
 #include <time.h>
 
 Buffer Buffer$new(){
