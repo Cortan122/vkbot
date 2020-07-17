@@ -320,8 +320,8 @@ void longpoll(char* token, JSONCallback callback){
 }
 
 char* getRandomId(){
-  static char result[15];
+  static char result[20];
   static int counter = 0;
-  snprintf(result, sizeof(result), "%d%d", time(NULL), counter++);
+  snprintf(result, sizeof(result), "%d%03d%d", time(NULL), counter++, getpid());
   return result;
 }
