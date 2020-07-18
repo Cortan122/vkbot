@@ -6,3 +6,4 @@
 cJSON.h
 cJSON.c
 *.o
+.vscode

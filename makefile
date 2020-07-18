@@ -1,9 +1,10 @@
 LDFLAGS=-lcurl -lpthread
 
 all: print potatobot whoami token.txt bottoken.txt
-print potatobot whoami: botlib.o cJSON.o Buffer.o
+print potatobot whoami: botlib.o cJSON.o Buffer.o LinkedDict.o
 botlib.o: cJSON.h botlib.h Buffer.h
 Buffer.o: Buffer.h
+LinkedDict.o: LinkedDict.h
 
 run: all
 	./$$(ls -t *.c | sed 's/.c$$//' | xargs -I R find R -prune 2>/dev/null | head -n 1)
