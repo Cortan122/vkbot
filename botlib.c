@@ -1,132 +1,11 @@
 #include "botlib.h"
 
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <curl/curl.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 #include <unistd.h>
-#include <time.h>
-
-Buffer Buffer$new(){
-  Buffer r;
-  r.cap = 16;
-  r.len = 0;
-  r.body = malloc(r.cap);
-  return r;
-}
-
-void Buffer$delete(Buffer* b){
-  if(b == NULL)return;
-  free(b->body);
-  b->body = NULL;
-}
-
-void Buffer$reset(Buffer* b){
-  b->len = 0;
-}
-
-static int Buffer$_realloc(Buffer* b){
-  if(b->len >= b->cap){
-    b->cap = MAX(b->cap*2, b->len+1);
-    b->body = realloc(b->body, b->cap);
-    return 1;
-  }
-  return 0;
-}
-
-void Buffer$appendChar(Buffer* b, char c){
-  b->body[b->len++] = c;
-  Buffer$_realloc(b);
-}
-
-void Buffer$append(Buffer* b, char* mem, int size){
-  int oldlen = b->len;
-  b->len += size;
-  Buffer$_realloc(b);
-  memcpy(b->body+oldlen, mem, size);
-}
-
-char* Buffer$appendString(Buffer* b, char* str){
-  Buffer$append(b, str, strlen(str));
-  return str;
-}
-
-int Buffer$appendFile(Buffer* b, char* path){
-  int retval = 1;
-  FILE* f = E(fopen(path, "rb"));
-
-  if(fseek(f, 0, SEEK_END)){
-    // we cant seek in this file (it is probably stdin)
-    fseek(f, 0, SEEK_SET); // just in case
-    int t;
-    while((t = getc(f)) >= 0){
-      Buffer$appendChar(b, t);
-    }
-    fclose(f);
-    return 0;
-  }
-  int length = ftell(f);
-  if(fseek(f, 0, SEEK_SET)){
-    fclose(f);
-    return 1;
-  }
-
-  int oldlen = b->len;
-  b->len += length;
-  Buffer$_realloc(b);
-  fread(b->body+oldlen, 1, length, f);
-
-  fclose(f);
-  return 0;
-
-  finally:
-  perror("");
-  return 1;
-}
-
-char* Buffer$toString(Buffer* b){
-  b->body[b->len] = '\0'; // this does not change the buffer
-  return b->body;
-}
-
-void Buffer$trimEnd(Buffer* b){
-  while(b->len > 0 && b->body[b->len - 1] <= ' ')b->len--;
-}
-
-void Buffer$untrim(Buffer* b){
-  if(b->len && b->body[b->len-1] != '\n')Buffer$appendChar(b, '\n');
-}
-
-void Buffer$printf(Buffer* b, char* format, ...){
-  int oldlen = b->len;
-
-  va_list argptr;
-  va_start(argptr, format);
-  int res = vsnprintf(b->body + oldlen, b->cap - oldlen, format, argptr);
-  va_end(argptr);
-  b->len += res;
-  if(Buffer$_realloc(b)){
-    va_start(argptr, format);
-    Z(res != vsnprintf(b->body + oldlen, b->cap - oldlen, format, argptr));
-    va_end(argptr);
-  }
-
-  return;
-  finally:
-  exit(1);
-}
-
-void Buffer$puts(Buffer* b){
-  puts(Buffer$toString(b));
-}
-
-int Buffer$endsWith(Buffer* b, char* needle){
-  int len = strlen(needle);
-  if(b->len < len)return 0;
-  return strcmp(needle, b->body + b->len-len) == 0;
-}
 
 static int curlWriteHook(void* ptr, int size, int nmemb, Buffer *b){
   Buffer$append(b, ptr, size*nmemb);
@@ -143,10 +22,10 @@ char* getTimeString(){
 
 void waitForInternet(){
   // todo? (i give up)
-  fprintf(stderr, "Waiting for internet at %s\n", getTimeString());
+  fprintf(stderr, "Waiting for \e[41minternet\e[0m at %s\n", getTimeString());
   fflush(stderr);
   while(system("ping -c 1 1.1.1.1 >/dev/null"));
-  fprintf(stderr, "Done waiting for internet at %s\n", getTimeString());
+  fprintf(stderr, "Done waiting for \e[41minternet\e[0m at %s\n", getTimeString());
   fflush(stderr);
 }
 
@@ -169,8 +48,8 @@ char* request(char* url, int post){
   Z(curl_easy_setopt(curl, CURLOPT_WRITEDATA, &b));
   Z(curl_easy_setopt(curl, CURLOPT_TIMEOUT, 100L));
   CURLcode retcode = curl_easy_perform(curl);
-  while(retcode == CURLE_OPERATION_TIMEDOUT){
-    fprintf(stderr, "curl request timed out: buffer has %d bytes\n", b.len);
+  while(retcode == CURLE_OPERATION_TIMEDOUT || retcode == CURLE_COULDNT_CONNECT || retcode == CURLE_COULDNT_RESOLVE_HOST){
+    fprintf(stderr, "curl request \x1b[35m%s\x1b[0m: buffer has \e[33m%d\e[0m bytes\n", curl_easy_strerror(retcode), b.len);
     fflush(stderr);
     Buffer$reset(&b);
     waitForInternet();
@@ -322,7 +201,7 @@ void longpoll(char* token, JSONCallback callback){
 
 char* getRandomId(){
   static char result[20];
-  static int counter = 0;
+  static uint8_t counter = 0;
   snprintf(result, sizeof(result), "%d%03d%d", time(NULL), counter++, getpid());
   return result;
 }

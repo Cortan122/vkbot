@@ -84,11 +84,16 @@ void printMallocStats(){
   char c1, c2;
   double d1 = humanredableSize(info.uordblks, &c1);
   double d2 = humanredableSize(info.fordblks + info.uordblks, &c2);
-  fprintf(stderr, "Memory usage at %s \e[33m%3.1f\e[0m%c / \e[33m%3.1f\e[0m%c\n", getTimeString(), d1,c1, d2,c2);
+  Buffer b2 = Buffer$new();
+  Buffer$printf(&b2, "Memory usage at %s \e[33m%3.1f\e[0m%c / \e[33m%3.1f\e[0m%c ", getTimeString(), d1,c1, d2,c2);
+
   Buffer b = Buffer$new();
   Buffer$printf(&b, "grep VmRSS /proc/%d/status", getpid()); // todo?
-  system(Buffer$toString(&b));
+  Buffer$popen(&b2, Buffer$toString(&b));
   Buffer$delete(&b);
+
+  fprintf(stderr, "%s", Buffer$toString(&b2));
+  Buffer$delete(&b2);
   fflush(stdout);
   fflush(stderr);
 }
