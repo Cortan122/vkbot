@@ -1,10 +1,8 @@
 #include "botlib.h"
 #include "LinkedDict.h"
 
-// #define USE_PTHREADS
+#define USE_PTHREADS
 // #define USE_PYBOT
-
-#define MY_ID 560101729
 
 #ifdef USE_PYBOT
   #define BOT_TOK "pybottoken.txt"
@@ -320,7 +318,7 @@ void* formatAttachments_thread(void* voidptr){
 
   struct timeval stop;
   gettimeofday(&stop, NULL);
-  printf("Formatting a long message \e[35mid%d\e[0m from \e[32m%d\e[0m took \e[34m%.3f\e[0ms for \e[33m%d\e[0m bytes at %s\n",
+  printf("Formatting a long message \e[35mid%d\e[0m from \e[32m%9d\e[0m took \e[34m%6.3f\e[0ms for \e[33m%3d\e[0m bytes at %s\n",
     p->id,
     p->user,
     ((stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec)/1000000.0,
@@ -465,6 +463,7 @@ void* sendPotato_thread(void* voidptr){
   Potato* p = voidptr;
 
   if(p == NULL || p == NULL+1){
+    if(p)return NULL; // todo?
     sendMessage(BOT_TOK, BOT_DEST, "message", p ?
       "ПолинаБот: *непомнит какое сообщение было отредактировано*" :
       "ПолинаБот: *непомнит какое сообщение было удалено*"
