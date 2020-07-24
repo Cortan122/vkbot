@@ -1,9 +1,15 @@
 #include "botlib.h"
 
+// #define LOG_REQUEST_TIMES
+
 #include <stdlib.h>
 #include <curl/curl.h>
 #include <stdarg.h>
 #include <stdint.h>
+
+#ifdef LOG_REQUEST_TIMES
+  #include <sys/time.h>
+#endif
 
 #include <unistd.h>
 
@@ -30,6 +36,11 @@ void waitForInternet(){
 }
 
 char* request(char* url, int post){
+  #ifdef LOG_REQUEST_TIMES
+    struct timeval start;
+    gettimeofday(&start, NULL);
+  #endif
+
   CURL* curl = E(curl_easy_init());
 
   Buffer b = Buffer$new();
@@ -58,6 +69,16 @@ char* request(char* url, int post){
   if(retcode)THROW("curl_easy_perform(curl)", "%s", curl_easy_strerror(retcode));
 
   curl_easy_cleanup(curl);
+
+  #ifdef LOG_REQUEST_TIMES
+    struct timeval stop;
+    gettimeofday(&stop, NULL);
+    printf("request: %s \e[34m%6.3f\e[0ms\n",
+      url,
+      ((stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec)/1000000.0
+    );
+  #endif
+
   return Buffer$toString(&b);
   finally:
   curl_easy_cleanup(curl);

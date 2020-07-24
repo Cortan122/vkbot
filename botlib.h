@@ -2,6 +2,8 @@
 #include "Buffer.h"
 #include <signal.h>
 
+#define MY_ID 560101729
+
 typedef void (JSONCallback)(cJSON*);
 
 char* getTimeString();
