@@ -1,6 +1,8 @@
 #include "botlib.h"
 #include "LinkedDict.h"
 
+#define DISABLE_EDITS
+#define DISABLE_FORMAT
 #define USE_PTHREADS
 // #define USE_PYBOT
 
@@ -375,9 +377,11 @@ Potato* Potato$new(cJSON* json){
       free(p->text);
       p->text = Buffer$toString(&b);
     }
-    if(!isSticker || cJSON_GetObjectItemCaseSensitive(attachments, "reply")){
-      START_THREAD(formatAttachments_thread, p);
-    }
+    #ifndef DISABLE_FORMAT
+      if(!isSticker || cJSON_GetObjectItemCaseSensitive(attachments, "reply")){
+        START_THREAD(formatAttachments_thread, p);
+      }
+    #endif
   }
 
   return p;
@@ -515,10 +519,12 @@ void potato_callback(cJSON* json){
     Bag$add(potatoBag, id, E(Potato$new(json)));
   }else if(type == 5){
     Potato* old = Bag$get(potatoBag, id);
-    if(old == NULL || strcmp(E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5)))), old->text) != 0){
-      sendPotato(old, 1);
-      old = E(Potato$new(json));
-    }
+    #ifndef DISABLE_EDITS
+      if(old == NULL || strcmp(E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5)))), old->text) != 0){
+        sendPotato(old, 1);
+        old = E(Potato$new(json));
+      }
+    #endif
     Bag$add(potatoBag, id, old);
   }
 

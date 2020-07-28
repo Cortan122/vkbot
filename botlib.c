@@ -28,6 +28,7 @@ char* getTimeString(){
 
 void waitForInternet(){
   // todo? (i give up)
+  if(!system("ping -c 1 1.1.1.1 >/dev/null"))return;
   fprintf(stderr, "Waiting for \e[41minternet\e[0m at %s\n", getTimeString());
   fflush(stderr);
   while(system("ping -c 1 1.1.1.1 >/dev/null"));
