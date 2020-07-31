@@ -3,7 +3,7 @@
 
 #define DISABLE_EDITS
 #define DISABLE_FORMAT
-#define USE_PTHREADS
+// #define USE_PTHREADS
 // #define USE_PYBOT
 
 #ifdef USE_PYBOT
