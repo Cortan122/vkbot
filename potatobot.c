@@ -519,12 +519,12 @@ void potato_callback(cJSON* json){
     Bag$add(potatoBag, id, E(Potato$new(json)));
   }else if(type == 5){
     Potato* old = Bag$get(potatoBag, id);
-    #ifndef DISABLE_EDITS
-      if(old == NULL || strcmp(E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5)))), old->text) != 0){
+    if(old == NULL || strcmp(E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5)))), old->text) != 0){
+      #ifndef DISABLE_EDITS
         sendPotato(old, 1);
-        old = E(Potato$new(json));
-      }
-    #endif
+      #endif
+      old = E(Potato$new(json));
+    }
     Bag$add(potatoBag, id, old);
   }
 
