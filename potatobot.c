@@ -555,5 +555,7 @@ int main(){
   potato_deinit();
 
   finally:
+  fflush(stdout);
+  fflush(stderr);
   return 0;
 }
