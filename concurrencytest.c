@@ -18,7 +18,10 @@ int main(){
   START_THREAD(sendTestMessage, (void*)4);
   START_THREAD(sendTestMessage, (void*)5);
   START_THREAD(sendTestMessage, (void*)6);
-  sleep(20);
+  sleep(10);
+
   finally:
+  fflush(stdout);
+  fflush(stderr);
   return 0;
 }
