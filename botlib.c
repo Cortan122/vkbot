@@ -1,5 +1,6 @@
 #include "botlib.h"
 
+#define USE_RATE_LIMIT
 // #define LOG_REQUEST_TIMES
 
 #include <stdlib.h>
@@ -112,6 +113,8 @@ int printJson(cJSON* json){
   return 1;
 }
 
+static time_t lastApiRequestTime = 0;
+
 cJSON* apiRequest(char* endpoint, char* token, ...){
   Buffer b = Buffer$new();
   Buffer$appendString(&b, "https://api.vk.com/method/");
@@ -121,7 +124,8 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
   Buffer$trimEnd(&b);
 
   va_list ap;
-  va_start(ap, token);int i = 0;
+  va_start(ap, token);
+  int i = 0;
   while(1){
     char* v1 = va_arg(ap, char*);
     if(v1 == NULL)break; // yay у нас кончились все аргументы
@@ -132,6 +136,21 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
     curl_free(Buffer$appendString(&b, E(curl_easy_escape(NULL, v2, 0))));
   }
   va_end(ap);
+
+  // todo: fixme
+  #ifdef USE_RATE_LIMIT
+    int j = 0;
+    while(lastApiRequestTime == time(NULL)){
+      #ifdef LOG_REQUEST_TIMES
+        printf("apiRequest: %s sleeping[%d]\n", endpoint, j++);
+      #endif
+      #ifdef USE_PTHREADS
+        usleep(rand() % 10000);
+      #endif
+      sleep(1);
+    }
+    lastApiRequestTime = time(NULL);
+  #endif
 
   char* res = E(request(Buffer$toString(&b), 1));
   Buffer$delete(&b);
@@ -222,8 +241,7 @@ void longpoll(char* token, JSONCallback callback){
 }
 
 char* getRandomId(){
-  static char result[20];
-  static uint8_t counter = 0;
-  snprintf(result, sizeof(result), "%d%03d%d", time(NULL), counter++, getpid());
-  return result;
+  Buffer b = Buffer$new();
+  Buffer$printf(&b, "%d%03d%d", time(NULL), rand()%1000, getpid());
+  return Buffer$toString(&b);
 }

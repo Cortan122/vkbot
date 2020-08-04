@@ -2,8 +2,7 @@
 #include "LinkedDict.h"
 
 #define DISABLE_EDITS
-#define DISABLE_FORMAT
-// #define USE_PTHREADS
+// #define DISABLE_FORMAT
 // #define USE_PYBOT
 
 #ifdef USE_PYBOT
@@ -20,17 +19,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/time.h>
-
-#ifdef USE_PTHREADS
-  #include <pthread.h>
-  #define START_THREAD(func, arg) ({ \
-    pthread_t threadId; \
-    Z(pthread_create(&threadId, NULL, func, arg)); \
-    Z(pthread_detach(threadId)); \
-  })
-#else
-  #define START_THREAD(func, arg) func(arg)
-#endif
 
 #define ATTACHMENT_LINK(emoji) \
   Buffer$printf(b, "%s https://vk.com/%s%d_%d", emoji, type, \
@@ -66,6 +54,15 @@
   E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "first_name")))), \
   E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "last_name")))) \
 )
+
+#define APPEND_TO_POTATO_TEXT(...) ({ \
+  Buffer b = Buffer$new(); \
+  Buffer$appendString(&b, p->text); \
+  Buffer$untrim(&b); \
+  Buffer$printf(&b, __VA_ARGS__); \
+  free(p->text); \
+  p->text = Buffer$toString(&b); \
+})
 
 double humanredableSize(int bytes, char* out){
   static const char sizes[] = " kMGTPE";
@@ -367,21 +364,20 @@ Potato* Potato$new(cJSON* json){
     char* attach1_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(attachments, "attach1_type"));
     int isSticker = attach1_type && strcmp(attach1_type, "sticker") == 0;
     if(isSticker){
-      Buffer b = Buffer$new();
-      Buffer$appendString(&b, p->text);
-      Buffer$untrim(&b);
-      Buffer$printf(
-        &b, "\n➕ https://vk.com/sticker/1-%s-512b\n",
+      APPEND_TO_POTATO_TEXT(
+        "\n➕ https://vk.com/sticker/1-%s-512b\n",
         E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(attachments, "attach1"))))
       );
-      free(p->text);
-      p->text = Buffer$toString(&b);
     }
-    #ifndef DISABLE_FORMAT
-      if(!isSticker || cJSON_GetObjectItemCaseSensitive(attachments, "reply")){
+    if(!isSticker || cJSON_GetObjectItemCaseSensitive(attachments, "reply")){
+      #ifndef DISABLE_FORMAT
         START_THREAD(formatAttachments_thread, p);
-      }
-    #endif
+      #else
+        char* t = E(cJSON_Print(attachments));
+        APPEND_TO_POTATO_TEXT("\n🤐 %s\n", t);
+        free(t);
+      #endif
+    }
   }
 
   return p;

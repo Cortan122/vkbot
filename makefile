@@ -1,7 +1,10 @@
 LDFLAGS=-lcurl -lpthread
+CFLAGS=-g -O3
+EXECUTABLES=print potatobot whoami concurrencytest
+CC=gcc
 
-all: print potatobot whoami token.txt bottoken.txt
-print potatobot whoami: botlib.o cJSON.o Buffer.o LinkedDict.o
+all: $(EXECUTABLES) token.txt bottoken.txt
+$(EXECUTABLES): botlib.o cJSON.o Buffer.o LinkedDict.o
 botlib.o: cJSON.h botlib.h Buffer.h
 Buffer.o: Buffer.h
 LinkedDict.o: LinkedDict.h
