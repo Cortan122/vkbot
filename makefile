@@ -1,5 +1,5 @@
 LDFLAGS=-lcurl -lpthread
-CFLAGS=-g -O3
+CFLAGS=-g -Og
 EXECUTABLES=print potatobot whoami concurrencytest
 CC=gcc
 

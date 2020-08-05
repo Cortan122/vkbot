@@ -436,8 +436,12 @@ void Bag$delete(Bag* b){
 void Bag$add(Bag* b, int id, Potato* val){
   if(val->user < 0){
     // это сообщение от сообщества, а им нечего скрывать
-    Potato$delete(val);
-    return;
+    // но если это крутое сообщение со всякими вложениями и у нас включены потоки
+    // когда мы его удалим тут, у нас всё сломается (тк второй поток будет пытатся красиво оформить текст)
+    #if !defined(USE_PTHREADS) || defined(DISABLE_FORMAT)
+      Potato$delete(val);
+      return;
+    #endif
   }
   if(b->firstIndex == -1)b->firstIndex = id;
   id -= b->firstIndex;
