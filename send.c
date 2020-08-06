@@ -8,7 +8,9 @@
 // compiletime magic
 #define _NUM(x) #x
 #define NUM(x) _NUM(x)
+
 #define STARTS_WITH(haystack, needle) (strlen(haystack) >= strlen(needle) && strncmp(haystack, needle, strlen(needle)) == 0)
+
 #define CR_COMMAND(cmd, type) \
   else if(STARTS_WITH(line, cmd)){ \
     if(attachment.len)Buffer$appendChar(&attachment, ','); \

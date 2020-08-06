@@ -105,7 +105,6 @@ typedef struct Potato {
   int id; // also for passing to threads
 } Potato;
 
-LinkedDict* userDict = NULL;
 LinkedDict* chatDict = NULL;
 
 char* getUserName(int id){
@@ -142,13 +141,12 @@ char* getUserName(int id){
 
 char* getChatName(int id){
   if(id == 0)return "какаято непонятная беседа";
-  if(id > 2000000000)id -= 2000000000;
-  else return getUserName(id);
+  else if(id < 2000000000)return getUserName(id);
   char* res = LinkedDict$get(chatDict, id);
   if(res)return res;
 
   Buffer b = Buffer$new();
-  Buffer$printf(&b, "%d", id);
+  Buffer$printf(&b, "%d", id-2000000000);
   cJSON* json = E(apiRequest("messages.getChat", "token.txt", "chat_id", Buffer$toString(&b), NULL));
   res = strdup(E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(json, "title")))));
   cJSON_Delete(json);
@@ -308,6 +306,18 @@ void* formatAttachments_thread(void* voidptr){
     if(LinkedDict$get(chatDict, id))continue;
     Buffer userBuff = Buffer$new();
     FROMAT_USER(userBuff, profile);
+    LinkedDict$add(chatDict, id, Buffer$toString(&userBuff));
+  }
+
+  cJSON* groups = cJSON_GetObjectItemCaseSensitive(response, "groups");
+  cJSON* group;
+  cJSON_ArrayForEach(group, groups){
+    int id = -E(cJSON_GetObjectItemCaseSensitive(group, "id"))->valueint;
+    if(LinkedDict$get(chatDict, id))continue;
+    Buffer userBuff = Buffer$new();
+    Buffer$printf(&userBuff, "https://vk.com/%s/",
+      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(group, "screen_name"))))
+    );
     LinkedDict$add(chatDict, id, Buffer$toString(&userBuff));
   }
 
@@ -534,7 +544,6 @@ void potato_callback(cJSON* json){
 
 void potato_init(){
   potatoBag = Bag$new();
-  userDict = LinkedDict$new(0, NULL);
   chatDict = LinkedDict$new(0, NULL);
 
   printf("Starting \x1b[93mpotatobot\x1b[0m at %s\n", getTimeString());
@@ -543,7 +552,6 @@ void potato_init(){
 
 void potato_deinit(){
   Bag$delete(potatoBag);
-  LinkedDict$delete(userDict);
   LinkedDict$delete(chatDict);
 }
 

@@ -130,6 +130,7 @@ int Buffer$popen(Buffer* b, char* command){
 
 void Buffer$puts(Buffer* b){
   puts(Buffer$toString(b));
+  fflush(stdout);
 }
 
 int Buffer$endsWith(Buffer* b, char* needle){
