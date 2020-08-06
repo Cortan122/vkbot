@@ -12,9 +12,10 @@ typedef void (JSONCallback)(cJSON*);
 char* getTimeString();
 void waitForInternet();
 
-char* request(char* url, int post);
+// char* request(char* url, int post);
 int printJson(cJSON* json);
-cJSON* apiRequest(char* endpoint, char* token, ...);
+cJSON* apiRequest(char* endpoint, char* token, ...); //  __attribute__((sentinel))
+cJSON* postFile(char* url, char* name, char* path);
 void longpoll(char* token, JSONCallback callback);
 char* getRandomId();
 

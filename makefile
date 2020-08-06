@@ -1,6 +1,6 @@
 LDFLAGS=-lcurl -lpthread
 CFLAGS=-g -Og
-EXECUTABLES=print potatobot whoami concurrencytest
+EXECUTABLES=print potatobot whoami concurrencytest send
 CC=gcc
 
 all: $(EXECUTABLES) token.txt bottoken.txt

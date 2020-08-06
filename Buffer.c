@@ -45,6 +45,7 @@ void Buffer$append(Buffer* b, char* mem, int size){
 }
 
 char* Buffer$appendString(Buffer* b, char* str){
+  if(str == NULL)return NULL;
   Buffer$append(b, str, strlen(str));
   return str;
 }
@@ -77,7 +78,7 @@ int Buffer$appendFile(Buffer* b, char* path){
   return 0;
 
   finally:
-  perror("");
+  perror(path);
   return 1;
 }
 

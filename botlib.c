@@ -1,4 +1,5 @@
 #include "botlib.h"
+#include "LinkedDict.h"
 
 #define USE_RATE_LIMIT
 // #define LOG_REQUEST_TIMES
@@ -7,12 +8,66 @@
 #include <curl/curl.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <string.h>
+#include <unistd.h>
+#include <linux/limits.h>
 
 #ifdef LOG_REQUEST_TIMES
   #include <sys/time.h>
 #endif
 
-#include <unistd.h>
+#define CHECK_FILE(fmt) ({ \
+  Buffer$printf(&b, fmt, exe, name); \
+  if(access(Buffer$toString(&b), R_OK) != 1)goto done; \
+  Buffer$reset(&b); \
+})
+
+#define CHECK_DIR() ({ \
+  while(strlen(exe) > 1){ \
+    while(strlen(exe) && exe[strlen(exe)-1] != '/')exe[strlen(exe)-1] = '\0'; \
+    CHECK_FILE("%s/%s"); \
+    CHECK_FILE("%s/%s.txt"); \
+  } \
+})
+
+static LinkedDict* tokenDict = NULL;
+
+static int hashString(char* str){
+  int res = 5381;
+  for(int c; c = *str++;)res = (res << 5) + res + c;
+  return res;
+}
+
+static char* findToken(char* name){
+  if(tokenDict == NULL)tokenDict = LinkedDict$new(0, NULL);
+  int hash = hashString(name);
+  char* res = LinkedDict$get(tokenDict, hash);
+  if(res)return res;
+
+  char exe[PATH_MAX];
+  Buffer b = Buffer$new();
+
+  E(readlink("/proc/self/exe", exe, sizeof(exe)-1));
+  CHECK_DIR();
+  E(realpath(".", exe));
+  CHECK_DIR();
+  Buffer$delete(&b);
+  fprintf(stderr, "can't find token \x1b[32m'%s'\x1b[0m\n", name);
+  fflush(stderr);
+  goto finally;
+
+  done:;
+  Buffer resbuf = Buffer$new();
+  Z(Buffer$appendFile(&resbuf, Buffer$toString(&b)));
+  Buffer$delete(&b);
+  LinkedDict$add(tokenDict, hash, Buffer$toString(&resbuf));
+  Buffer$trimEnd(&resbuf);
+  return Buffer$toString(&resbuf);
+  // todo
+
+  finally:
+  return NULL;
+}
 
 static int curlWriteHook(void* ptr, int size, int nmemb, Buffer *b){
   Buffer$append(b, ptr, size*nmemb);
@@ -37,7 +92,7 @@ void waitForInternet(){
   fflush(stderr);
 }
 
-char* request(char* url, int post){
+char* request(char* url, int post, ...){
   #ifdef LOG_REQUEST_TIMES
     struct timeval start;
     gettimeofday(&start, NULL);
@@ -46,7 +101,7 @@ char* request(char* url, int post){
   CURL* curl = E(curl_easy_init());
 
   Buffer b = Buffer$new();
-  if(post){
+  if(post == 1){
     // may (will) segfault if url is pointing to rom
     char* urlargs = url;
     while(*urlargs && *urlargs != '?')urlargs++;
@@ -55,6 +110,19 @@ char* request(char* url, int post){
       urlargs++;
       curl_easy_setopt(curl, CURLOPT_POSTFIELDS, urlargs);
     }
+  }else if(post == 2){
+    va_list ap;
+    va_start(ap, post);
+    char* name = E(va_arg(ap, char*));
+    char* path = E(va_arg(ap, char*));
+    va_end(ap);
+
+    curl_mime* form = E(curl_mime_init(curl));
+    curl_mimepart* field = E(curl_mime_addpart(form));
+    Z(curl_mime_name(field, name));
+    if(access(path, R_OK))perror(path);
+    Z(curl_mime_filedata(field, path));
+    Z(curl_easy_setopt(curl, CURLOPT_MIMEPOST, form));
   }
   Z(curl_easy_setopt(curl, CURLOPT_URL, url));
   Z(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteHook));
@@ -117,11 +185,7 @@ static time_t lastApiRequestTime = 0;
 
 cJSON* apiRequest(char* endpoint, char* token, ...){
   Buffer b = Buffer$new();
-  Buffer$appendString(&b, "https://api.vk.com/method/");
-  Buffer$appendString(&b, endpoint);
-  Buffer$appendString(&b, "?v=5.120&access_token=");
-  Z(Buffer$appendFile(&b, token)); // todo: cache tokens
-  Buffer$trimEnd(&b);
+  Buffer$printf(&b, "https://api.vk.com/method/%s?v=5.120&access_token=%s", endpoint, E(findToken(token)));
 
   va_list ap;
   va_start(ap, token);
@@ -170,6 +234,23 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
   }
 
   finally:
+  return NULL;
+}
+
+cJSON* postFile(char* url, char* name, char* path){
+  cJSON* json = NULL;
+  char* res = E(request(url, 2, name, path));
+  json = E(cJSON_Parse(res));
+  free(res);
+
+  if(cJSON_GetObjectItemCaseSensitive(json, "error")){
+    Z(printJson(json));
+    goto finally;
+  }
+
+  return json;
+  finally:
+  cJSON_Delete(json);
   return NULL;
 }
 
