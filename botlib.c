@@ -2,6 +2,7 @@
 #include "LinkedDict.h"
 
 #define USE_RATE_LIMIT
+#define UNSAFE_ENDPOINT "messages.getById"
 // #define LOG_REQUEST_TIMES
 
 #include <stdlib.h>
@@ -204,6 +205,9 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
   // todo: fixme
   #ifdef USE_RATE_LIMIT
     int j = 0;
+    #ifdef UNSAFE_ENDPOINT
+      if(strcmp(UNSAFE_ENDPOINT, endpoint) == 0)
+    #endif
     while(lastApiRequestTime == time(NULL)){
       #ifdef LOG_REQUEST_TIMES
         printf("apiRequest: %s sleeping[%d]\n", endpoint, j++);
