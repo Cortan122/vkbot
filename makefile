@@ -1,9 +1,9 @@
-LDFLAGS=-lcurl -lpthread
-CFLAGS=-g -Og
-EXECUTABLES=print potatobot whoami concurrencytest send
+LDFLAGS=-lcurl -lpthread -lm
+CFLAGS=-g -Og -fdollars-in-identifiers
+EXECUTABLES=print potatobot whoami concurrencytest send cronbot
 CC=gcc
 
-all: $(EXECUTABLES) token.txt bottoken.txt
+all: $(EXECUTABLES) token.txt bottoken.txt apikey.txt
 $(EXECUTABLES): botlib.o cJSON.o Buffer.o LinkedDict.o
 botlib.o: cJSON.h botlib.h Buffer.h
 Buffer.o: Buffer.h
@@ -13,7 +13,7 @@ run: all
 	./$$(ls -t *.c | sed 's/.c$$//' | xargs -I R find R -prune 2>/dev/null | head -n 1)
 
 clean:
-	rm -f *.o print whoami potatobot *.txt cJSON.*
+	rm -f *.o $(EXECUTABLES) *.txt cJSON.*
 
 %.txt:
 	rm -f $@

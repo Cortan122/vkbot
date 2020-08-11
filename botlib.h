@@ -11,6 +11,8 @@ typedef void (JSONCallback)(cJSON*);
 
 char* getTimeString();
 void waitForInternet();
+char* find(char* name, char* ext);
+char* findToken(char* name);
 
 // char* request(char* url, int post);
 int printJson(cJSON* json);
@@ -18,6 +20,8 @@ cJSON* apiRequest(char* endpoint, char* token, ...); //  __attribute__((sentinel
 cJSON* postFile(char* url, char* name, char* path);
 void longpoll(char* token, JSONCallback callback);
 char* getRandomId();
+
+cJSON* gapiRequest(char* spreadsheetid, char* range, char* token);
 
 volatile extern sig_atomic_t longpollFlag;
 

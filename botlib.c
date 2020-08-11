@@ -17,17 +17,19 @@
   #include <sys/time.h>
 #endif
 
-#define CHECK_FILE(fmt) ({ \
-  Buffer$printf(&b, fmt, exe, name); \
-  if(access(Buffer$toString(&b), R_OK) != 1)goto done; \
+#define CHECK_FILE(ext) ({ \
+  Buffer$printf(&b, "%s/%s%s", exe, name, ext); \
+  if(access(Buffer$toString(&b), R_OK) != -1)return Buffer$toString(&b); \
   Buffer$reset(&b); \
 })
 
-#define CHECK_DIR() ({ \
-  while(strlen(exe) > 1){ \
-    while(strlen(exe) && exe[strlen(exe)-1] != '/')exe[strlen(exe)-1] = '\0'; \
-    CHECK_FILE("%s/%s"); \
-    CHECK_FILE("%s/%s.txt"); \
+#define CHECK_DIR(ext) ({ \
+  int len = strlen(exe); \
+  while(len > 1){ \
+    while(len && exe[len-1] != '/')exe[--len] = '\0'; \
+    while(len && exe[len-1] == '/')exe[--len] = '\0'; \
+    CHECK_FILE(""); \
+    if(ext)CHECK_FILE(ext); \
   } \
 })
 
@@ -39,32 +41,39 @@ static int hashString(char* str){
   return res;
 }
 
-static char* findToken(char* name){
+char* find(char* name, char* ext){
+  if(ext && ext[0] == '\0')ext = NULL;
+
+  char exe[PATH_MAX];
+  memset(exe, 0, PATH_MAX); // make valgrind happy
+  Buffer b = Buffer$new();
+
+  E(readlink("/proc/self/exe", exe, sizeof(exe)-1));
+  CHECK_DIR(ext);
+  E(realpath(".", exe));
+  CHECK_DIR(ext);
+
+  finally:
+  Buffer$delete(&b);
+  fprintf(stderr, "can't find \x1b[32m'%s'\x1b[0m\n", name);
+  fflush(stderr);
+  return NULL;
+}
+
+char* findToken(char* name){
   if(tokenDict == NULL)tokenDict = LinkedDict$new(0, NULL);
   int hash = hashString(name);
   char* res = LinkedDict$get(tokenDict, hash);
   if(res)return res;
 
-  char exe[PATH_MAX];
-  Buffer b = Buffer$new();
+  char* path = E(find(name, ".txt"));
 
-  E(readlink("/proc/self/exe", exe, sizeof(exe)-1));
-  CHECK_DIR();
-  E(realpath(".", exe));
-  CHECK_DIR();
-  Buffer$delete(&b);
-  fprintf(stderr, "can't find token \x1b[32m'%s'\x1b[0m\n", name);
-  fflush(stderr);
-  goto finally;
-
-  done:;
   Buffer resbuf = Buffer$new();
-  Z(Buffer$appendFile(&resbuf, Buffer$toString(&b)));
-  Buffer$delete(&b);
-  LinkedDict$add(tokenDict, hash, Buffer$toString(&resbuf));
+  Z(Buffer$appendFile(&resbuf, path));
+  free(path);
   Buffer$trimEnd(&resbuf);
+  LinkedDict$add(tokenDict, hash, Buffer$toString(&resbuf));
   return Buffer$toString(&resbuf);
-  // todo
 
   finally:
   return NULL;
@@ -329,4 +338,32 @@ char* getRandomId(){
   Buffer b = Buffer$new();
   Buffer$printf(&b, "%d%03d%d", time(NULL), rand()%1000, getpid());
   return Buffer$toString(&b);
+}
+
+cJSON* gapiRequest(char* spreadsheetid, char* range, char* token){
+  if(token == NULL)token = "apikey.txt";
+
+  Buffer b = Buffer$new();
+  char* range2 = E(curl_easy_escape(NULL, range, 0));
+  Buffer$printf(&b, "https://sheets.googleapis.com/v4/spreadsheets/%s/values/%s?key=%s", spreadsheetid, range2, E(findToken(token)));
+  curl_free(range2);
+
+  char* res = E(request(Buffer$toString(&b), 0));
+  Buffer$delete(&b);
+  cJSON* json = E(cJSON_Parse(res));
+  free(res);
+
+  cJSON* err = cJSON_GetObjectItemCaseSensitive(json, "error");
+  if(err){
+    Z(printJson(err));
+    cJSON_Delete(json);
+    return NULL;
+  }else{
+    cJSON* response = E(cJSON_DetachItemFromObjectCaseSensitive(json, "values"));
+    cJSON_Delete(json);
+    return response;
+  }
+
+  finally:
+  return NULL;
 }

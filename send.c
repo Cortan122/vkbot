@@ -5,12 +5,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-// compiletime magic
-#define _NUM(x) #x
-#define NUM(x) _NUM(x)
-
-#define STARTS_WITH(haystack, needle) (strlen(haystack) >= strlen(needle) && strncmp(haystack, needle, strlen(needle)) == 0)
-
 #define CR_COMMAND(cmd, type) \
   else if(STARTS_WITH(line, cmd)){ \
     if(attachment.len)Buffer$appendChar(&attachment, ','); \
@@ -104,10 +98,12 @@ void parseArgv(int argc, char** argv){
   }
 
   if(!(message || filepath || slurp)){
-    //todo: нам тут нечиго делать
+    fprintf(stderr, "One of -s, -f or <message> must be specified\n");
+    exit(1);
   }
   if(!destination){
-    //todo: нам тут некуда слать сообщения
+    fprintf(stderr, "Destination (-t) must be specified\n");
+    exit(1);
   }
 }
 

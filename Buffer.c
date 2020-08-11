@@ -7,9 +7,9 @@
 
 Buffer Buffer$new(){
   Buffer r;
-  r.cap = 16;
+  r.cap = 0;
   r.len = 0;
-  r.body = malloc(r.cap);
+  r.body = NULL;
   return r;
 }
 
@@ -25,7 +25,7 @@ void Buffer$reset(Buffer* b){
 
 static int Buffer$_realloc(Buffer* b){
   if(b->len >= b->cap){
-    b->cap = MAX(b->cap*2, b->len+1);
+    b->cap = MAX(16, MAX(b->cap*2, b->len+1));
     b->body = realloc(b->body, b->cap);
     return 1;
   }
@@ -33,8 +33,9 @@ static int Buffer$_realloc(Buffer* b){
 }
 
 void Buffer$appendChar(Buffer* b, char c){
-  b->body[b->len++] = c;
+  b->len++;
   Buffer$_realloc(b);
+  b->body[b->len-1] = c;
 }
 
 void Buffer$append(Buffer* b, char* mem, int size){
@@ -83,6 +84,7 @@ int Buffer$appendFile(Buffer* b, char* path){
 }
 
 char* Buffer$toString(Buffer* b){
+  if(b->body == NULL)Buffer$_realloc(b);
   b->body[b->len] = '\0'; // this does not change the buffer
   return b->body;
 }
