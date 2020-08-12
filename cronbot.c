@@ -4,14 +4,34 @@
 #include <stdlib.h>
 
 char* startScriptPath = NULL;
+int restart = 0;
 
-int startTmuxJob(char* path, char* name){
+int startTmuxJob(char* path, char* name, int killall){
   Z(setenv("name", name, 1));
-  if(system("tmux has -t \"$name\"")){
-    Z(setenv("path", path, 1));
-    if(!startScriptPath)startScriptPath = E(find("start.sh", NULL));
-    Z(setenv("start", startScriptPath, 1));
+  Z(setenv("path", path, 1));
+  if(!startScriptPath)startScriptPath = E(find("start.sh", NULL));
+  Z(setenv("start", startScriptPath, 1));
+
+  if(system("tmux has -t \"$name\"") && killall != 2){
     Z(system("tmux new -d -s \"$name\" \"$start\" \"$path\""));
+    printf("started session %s\n", name);
+    fflush(stdout);
+  }else if(killall == 1){
+    Z(system("tmux kill-session -t \"$name\""));
+    Z(system("tmux new -d -s \"$name\" \"$start\" \"$path\""));
+    printf("restarted session %s\n", name);
+    fflush(stdout);
+  }else if(killall == 2){
+    Z(system("tmux kill-session -t \"$name\""));
+  }else if(killall == 3){
+    // killall == 3 is unused for now
+    system(
+      "[ \"$(stat -c '%Y' \"$path\")\" -gt "
+      " \"$(tmux ls -F '#{session_name}:#{session_created}' | grep -F \"$name\" | awk -F: '{ print $2 }')\" ] && "
+      "tmux kill-session -t \"$name\" && "
+      "tmux new -d -s \"$name\" \"$start\" \"$path\" && "
+      "echo started session \"$name\""
+    );
   }
 
   return 0;
@@ -25,6 +45,13 @@ int lastIndexOf(char* str, char c){
     if(str[i] == c)ret = i;
   }
   return ret;
+}
+
+char* getBasename(char* name){
+  name += lastIndexOf(name, '/')+1;
+  int t = lastIndexOf(name, '.');
+  if(t != -1)name[t] = '\0';
+  return name;
 }
 
 int proccesLine(cJSON* line, Buffer* b){
@@ -42,12 +69,13 @@ int proccesLine(cJSON* line, Buffer* b){
 
   path = E(find(name, ".exe"));
   if(strcmp(cron, "start") == 0){
-    name += lastIndexOf(name, '/')+1;
-    int t = lastIndexOf(name, '.');
-    if(t != -1)name[t] = '\0';
-    Z(startTmuxJob(path, name));
+    Z(startTmuxJob(path, getBasename(name), restart));
+  }else if(strcmp(cron, "stop") == 0){
+    Z(startTmuxJob(path, getBasename(name), 2));
   }else if(STARTS_WITH(cron, "start ")){
-    Z(startTmuxJob(path, cron+strlen("start ")));
+    Z(startTmuxJob(path, cron+strlen("start "), restart));
+  }else if(STARTS_WITH(cron, "stop ")){
+    Z(startTmuxJob(path, cron+strlen("stop "), 2));
   }else{
     // trim:
     for(; *cron <= ' '; cron++);
@@ -108,8 +136,10 @@ char* getNewCrontab(){
   return NULL;
 }
 
-int main(){
+int main(int argc, char** argv){
   srand(time(NULL));
+
+  if(argc == 2 && strcmp(argv[1], "--restart") == 0)restart = 1;
 
   Buffer b = Buffer$new();
   Buffer$popen(&b, "crontab -l"); // explicitly no Z()

@@ -1,7 +1,7 @@
 LDFLAGS=-lcurl -lpthread -lm
 CFLAGS=-g -Og -fdollars-in-identifiers
 EXECUTABLES=print potatobot whoami concurrencytest send cronbot
-CC=gcc
+# CC=gcc
 
 all: $(EXECUTABLES) token.txt bottoken.txt apikey.txt
 $(EXECUTABLES): botlib.o cJSON.o Buffer.o LinkedDict.o
