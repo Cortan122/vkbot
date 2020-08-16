@@ -8,6 +8,9 @@
 #include <time.h>
 #include <math.h>
 #include <stdlib.h>
+#include <stdarg.h>
+
+#define SHLEX "2000000001"
 
 char* attachment = NULL;
 
@@ -28,7 +31,7 @@ int proccesLine(cJSON* line, Buffer* b){
       free(plot);
 
       free(attachment); // todo
-      attachment = E(uploadFile("corona.png", "photo", "2000000001", "bottoken.txt"));
+      attachment = E(uploadFile("corona.png", "photo", SHLEX, "bottoken.txt"));
       Z(remove("corona.png"));
     }else if(STARTS_WITH(str, "#corona")){
       char* res = request("https://corona-stats.online/russia?format=json");
@@ -113,14 +116,32 @@ char* getMessage(){
   return NULL;
 }
 
+cJSON* traverseJsonPath(cJSON* json, ...){
+  va_list ap;
+  va_start(ap, json);
+  char* name;
+  while(1){
+    name = va_arg(ap, char*);
+    if(name == NULL)break;
+    json = E(cJSON_GetObjectItem(json, name));
+  }
+  va_end(ap);
+
+  return json;
+  finally:
+  fprintf(stderr, "%s not found\n", name);
+  fflush(stderr);
+  return NULL;
+}
+
 bool isLastMessageBotted(char* chat, char* token){
-  cJSON* r = E(apiRequest("messages.getConversationsById", "token.txt", "peer_ids", "2000000001", NULL));
+  cJSON* r = E(apiRequest("messages.getConversationsById", token, "peer_ids", chat, NULL));
   int id = E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0)), "last_message_id"))->valueint;
   cJSON_Delete(r);
   Buffer b = Buffer$new();
   Buffer$printf(&b, "%d", id);
 
-  r = E(apiRequest("messages.getById", "token.txt", "message_ids", Buffer$toString(&b), NULL));
+  r = E(apiRequest("messages.getById", token, "message_ids", Buffer$toString(&b), NULL));
   Buffer$delete(&b);
   cJSON* lastMessage = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
   int fromid = E(cJSON_GetObjectItem(lastMessage, "from_id"))->valueint;
@@ -133,20 +154,42 @@ bool isLastMessageBotted(char* chat, char* token){
   return true;
 }
 
+int pinLastMessage(char* chat){
+  cJSON* r = E(apiRequest("messages.getConversationsById", "token.txt", "peer_ids", chat, NULL));
+  cJSON* item = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
+  int id = E(cJSON_GetObjectItem(item, "last_message_id"))->valueint;
+  int fromid = E(traverseJsonPath(item, "chat_settings", "pinned_message", "from_id", NULL))->valueint;
+  cJSON_Delete(r);
+
+  if(fromid >= 0)return 0;
+
+  Buffer b = Buffer$new();
+  Buffer$printf(&b, "%d", id);
+  r = E(apiRequest("messages.getById", "token.txt", "message_ids", Buffer$toString(&b), NULL));
+  cJSON* lastMessage = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
+  fromid = E(cJSON_GetObjectItem(lastMessage, "from_id"))->valueint;
+
+  if(fromid < 0){
+    cJSON_Delete(E(apiRequest("messages.pin", "token.txt", "peer_id", chat, "message_id", id, Buffer$toString(&b), NULL)));
+  }else{
+    printf("can't pin at %s\n", getTimeString());
+    fflush(stdout);
+  }
+  Buffer$delete(&b);
+
+  return 0;
+  finally:
+  return 1;
+}
+
 int main(){
-  if(!isLastMessageBotted("2000000001", "token.txt")){
+  if(!isLastMessageBotted(SHLEX, "token.txt")){
     char* res = E(getMessage());
     printf("%s", res);
-    sendMessage("bottoken.txt", "2000000001", "message", res, "attachment", attachment ?: "");
+    sendMessage("bottoken.txt", SHLEX, "message", res, "attachment", attachment ?: "");
     free(res);
 
-    // char* path = E(find("send", ".exe"));
-    // Z(setenv("path", path, 1)); // path != PATH?
-    // FILE* sender = popen("\"$path\" -sn -t 2000000001", "w");
-    // fwrite(res, 1, strlen(res), sender);
-    // pclose(sender);
-    // free(path);
-    // free(res);
+    Z(pinLastMessage(SHLEX));
   }else{
     printf("the last message is also botted at %s\n", getTimeString());
   }
