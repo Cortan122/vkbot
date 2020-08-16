@@ -12,7 +12,9 @@ int startTmuxJob(char* path, char* name, int killall){
   if(!startScriptPath)startScriptPath = E(find("start.sh", NULL));
   Z(setenv("start", startScriptPath, 1));
 
-  if(system("tmux has -t \"$name\"") && killall != 2){
+  int has = !system("tmux has -t \"$name\"");
+
+  if(!has && killall != 2){
     Z(system("tmux new -d -s \"$name\" \"$start\" \"$path\""));
     printf("started session %s\n", name);
     fflush(stdout);
@@ -21,8 +23,10 @@ int startTmuxJob(char* path, char* name, int killall){
     Z(system("tmux new -d -s \"$name\" \"$start\" \"$path\""));
     printf("restarted session %s\n", name);
     fflush(stdout);
-  }else if(killall == 2){
+  }else if(has && killall == 2){
     Z(system("tmux kill-session -t \"$name\""));
+    printf("stopped session %s\n", name);
+    fflush(stdout);
   }else if(killall == 3){
     // killall == 3 is unused for now
     system(

@@ -148,7 +148,7 @@ int main(){
     // free(path);
     // free(res);
   }else{
-    printf("the last message is also botted\n");
+    printf("the last message is also botted at %s\n", getTimeString());
   }
 
   free(attachment);
