@@ -7,3 +7,5 @@ cJSON.h
 cJSON.c
 *.o
 .vscode
+*.log
+*.png

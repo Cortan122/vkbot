@@ -12,6 +12,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <linux/limits.h>
+#include <stdbool.h>
 
 #ifdef LOG_REQUEST_TIMES
   #include <sys/time.h>
@@ -102,7 +103,7 @@ void waitForInternet(){
   fflush(stderr);
 }
 
-char* request(char* url, int post, ...){
+static char* _request_impl(char* url, int post, ...){
   #ifdef LOG_REQUEST_TIMES
     struct timeval start;
     gettimeofday(&start, NULL);
@@ -164,6 +165,10 @@ char* request(char* url, int post, ...){
   curl_easy_cleanup(curl);
   Buffer$delete(&b);
   return NULL;
+}
+
+char* request(char* url){
+  return _request_impl(url, 0);
 }
 
 int printJson(cJSON* json){
@@ -229,19 +234,18 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
     lastApiRequestTime = time(NULL);
   #endif
 
-  char* res = E(request(Buffer$toString(&b), 1));
+  char* res = E(_request_impl(Buffer$toString(&b), 1));
   Buffer$delete(&b);
   cJSON* json = E(cJSON_Parse(res));
   free(res);
 
-  cJSON* err = cJSON_GetObjectItemCaseSensitive(json, "error");
+  cJSON* err = cJSON_GetObjectItem(json, "error");
   if(err){
     Z(printJson(err));
     cJSON_Delete(json);
     return NULL;
   }else{
     cJSON* response = E(cJSON_DetachItemFromObjectCaseSensitive(json, "response"));
-    // response = E(cJSON_Duplicate(response, 1));
     cJSON_Delete(json);
     return response;
   }
@@ -252,11 +256,11 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
 
 cJSON* postFile(char* url, char* name, char* path){
   cJSON* json = NULL;
-  char* res = E(request(url, 2, name, path));
+  char* res = E(_request_impl(url, 2, name, path));
   json = E(cJSON_Parse(res));
   free(res);
 
-  if(cJSON_GetObjectItemCaseSensitive(json, "error")){
+  if(cJSON_GetObjectItem(json, "error")){
     Z(printJson(json));
     goto finally;
   }
@@ -267,6 +271,59 @@ cJSON* postFile(char* url, char* name, char* path){
   return NULL;
 }
 
+char* uploadFile(char* path, char* type, char* destination, char* token){
+  Buffer result = Buffer$new();
+  cJSON* res = NULL;
+  bool isPhoto = strcmp(type, "photo") == 0;
+  if(isPhoto){
+    res = E(apiRequest("photos.getMessagesUploadServer", token, "peer_id", destination, NULL));
+  }else{
+    if(strcmp(path + strlen(path) - 4, ".mp3") == 0)type = "audio_message";
+    res = E(apiRequest("docs.getMessagesUploadServer", token, "type", type, "peer_id", destination, NULL));
+  }
+
+  // todo: cache upload servers
+  char* upload_url = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(res, "upload_url"))));
+  cJSON* res2 = E(postFile(upload_url, isPhoto?"photo":"file", path));
+  cJSON_Delete(res);
+  res = res2;
+
+  if(isPhoto){
+    Buffer$printf(&result, "%d", E(cJSON_GetObjectItem(res, "server"))->valueint);
+    res2 = E(apiRequest("photos.saveMessagesPhoto", token,
+      "photo", E(cJSON_GetStringValue(E(cJSON_GetObjectItem(res, "photo")))),
+      "hash", E(cJSON_GetStringValue(E(cJSON_GetObjectItem(res, "hash")))),
+      "server", Buffer$toString(&result),
+      NULL
+    ));
+    Buffer$reset(&result);
+    cJSON_Delete(res);
+    res = res2;
+    cJSON* arr = E(cJSON_GetArrayItem(res, 0));
+    Buffer$printf(&result, "photo%d_%d_%s",
+      E(cJSON_GetObjectItem(arr, "owner_id"))->valueint,
+      E(cJSON_GetObjectItem(arr, "id"))->valueint,
+      E(cJSON_GetStringValue(E(cJSON_GetObjectItem(arr, "access_key"))))
+    );
+  }else{
+    res2 = E(apiRequest("docs.save", token, "file", E(cJSON_GetStringValue(E(cJSON_GetObjectItem(res, "file")))), NULL));
+    cJSON_Delete(res);
+    res = res2;
+    cJSON* arr = E(cJSON_GetObjectItem(res, type));
+    Buffer$printf(&result, "doc%d_%d",
+      E(cJSON_GetObjectItem(arr, "owner_id"))->valueint,
+      E(cJSON_GetObjectItem(arr, "id"))->valueint
+    );
+  }
+  cJSON_Delete(res);
+  return Buffer$toString(&result);
+
+  finally:
+  Buffer$delete(&result);
+  cJSON_Delete(res);
+  return NULL;
+}
+
 static Buffer* getLongpollLink(char* token, Buffer* b){
   cJSON* res = E(apiRequest(
     "messages.getLongPollServer", token,
@@ -274,9 +331,9 @@ static Buffer* getLongpollLink(char* token, Buffer* b){
     NULL
   ));
   // Z(printJson(res));
-  char* server = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(res, "server"))));
-  char* key = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(res, "key"))));
-  int ts = E(cJSON_GetObjectItemCaseSensitive(res, "ts"))->valueint;
+  char* server = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(res, "server"))));
+  char* key = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(res, "key"))));
+  int ts = E(cJSON_GetObjectItem(res, "ts"))->valueint;
 
   Buffer$reset(b);
   Buffer$printf(b, "https://%s?act=a_check&key=%s&wait=90&mode=2&version=3&ts=%d", server, key, ts);
@@ -301,15 +358,15 @@ void longpoll(char* token, JSONCallback callback){
       while(b.len > 0 && b.body[b.len - 1] != '=')b.len--;
       Buffer$printf(&b, "%d", ts);
     }
-    char* res = E(request(Buffer$toString(&b), 0));
+    char* res = E(request(Buffer$toString(&b)));
     cJSON* json = E(cJSON_Parse(res));
     free(res);
     // Z(printJson(json));
 
-    cJSON* tsPtr = cJSON_GetObjectItemCaseSensitive(json, "ts");
+    cJSON* tsPtr = cJSON_GetObjectItem(json, "ts");
     if(tsPtr)ts = tsPtr->valueint;
 
-    cJSON* failedPtr = cJSON_GetObjectItemCaseSensitive(json, "failed");
+    cJSON* failedPtr = cJSON_GetObjectItem(json, "failed");
     if(failedPtr){
       switch(failedPtr->valueint){
         default:
@@ -325,7 +382,7 @@ void longpoll(char* token, JSONCallback callback){
       continue;
     }
 
-    for(cJSON* item = E(cJSON_GetObjectItemCaseSensitive(json, "updates"))->child; item; item = item->next)callback(item);
+    for(cJSON* item = E(cJSON_GetObjectItem(json, "updates"))->child; item; item = item->next)callback(item);
 
     cJSON_Delete(json);
   }
@@ -348,12 +405,12 @@ cJSON* gapiRequest(char* spreadsheetid, char* range, char* token){
   Buffer$printf(&b, "https://sheets.googleapis.com/v4/spreadsheets/%s/values/%s?key=%s", spreadsheetid, range2, E(findToken(token)));
   curl_free(range2);
 
-  char* res = E(request(Buffer$toString(&b), 0));
+  char* res = E(request(Buffer$toString(&b)));
   Buffer$delete(&b);
   cJSON* json = E(cJSON_Parse(res));
   free(res);
 
-  cJSON* err = cJSON_GetObjectItemCaseSensitive(json, "error");
+  cJSON* err = cJSON_GetObjectItem(json, "error");
   if(err){
     Z(printJson(err));
     cJSON_Delete(json);

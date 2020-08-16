@@ -22,21 +22,21 @@
 
 #define ATTACHMENT_LINK(emoji) \
   Buffer$printf(b, "%s https://vk.com/%s%d_%d", emoji, type, \
-    E(cJSON_GetObjectItemCaseSensitive(inner, "owner_id"))->valueint, \
-    E(cJSON_GetObjectItemCaseSensitive(inner, "id"))->valueint \
+    E(cJSON_GetObjectItem(inner, "owner_id"))->valueint, \
+    E(cJSON_GetObjectItem(inner, "id"))->valueint \
   )
 
 #define ATTACHMENT_LINK_fromid(emoji) \
   Buffer$printf(b, "%s https://vk.com/%s%d_%d", emoji, type, \
-    E(cJSON_GetObjectItemCaseSensitive(inner, "from_id"))->valueint, \
-    E(cJSON_GetObjectItemCaseSensitive(inner, "id"))->valueint \
+    E(cJSON_GetObjectItem(inner, "from_id"))->valueint, \
+    E(cJSON_GetObjectItem(inner, "id"))->valueint \
   )
 
 #define ATTACHMENT_URL(emoji) \
-  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(inner, "url")))))
+  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItem(inner, "url")))))
 
 #define ATTACHMENT_URL_linkmp3(emoji) \
-  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(inner, "link_mp3")))))
+  Buffer$printf(b, "%s %s", emoji, E(cJSON_GetStringValue(E(cJSON_GetObjectItem(inner, "link_mp3")))))
 
 #define ATTACHMENT_MSG(emoji, msg) if(msg){ \
   int prevlen = prefix->len; \
@@ -50,9 +50,9 @@
 }
 
 #define FROMAT_USER(b, obj) Buffer$printf(&b, "@%s (%s %s)", \
-  E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "domain")))), \
-  E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "first_name")))), \
-  E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "last_name")))) \
+  E(cJSON_GetStringValue(E(cJSON_GetObjectItem(obj, "domain")))), \
+  E(cJSON_GetStringValue(E(cJSON_GetObjectItem(obj, "first_name")))), \
+  E(cJSON_GetStringValue(E(cJSON_GetObjectItem(obj, "last_name")))) \
 )
 
 #define APPEND_TO_POTATO_TEXT(...) ({ \
@@ -121,7 +121,7 @@ char* getUserName(int id){
     obj = E(cJSON_GetArrayItem(json, 0));
     Buffer$reset(&b);
     Buffer$printf(&b, "https://vk.com/%s/",
-      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(obj, "screen_name"))))
+      E(cJSON_GetStringValue(E(cJSON_GetObjectItem(obj, "screen_name"))))
     );
   }else{
     Buffer$printf(&b, "%d", id);
@@ -148,7 +148,7 @@ char* getChatName(int id){
   Buffer b = Buffer$new();
   Buffer$printf(&b, "%d", id-2000000000);
   cJSON* json = E(apiRequest("messages.getChat", "token.txt", "chat_id", Buffer$toString(&b), NULL));
-  res = strdup(E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(json, "title")))));
+  res = strdup(E(cJSON_GetStringValue(E(cJSON_GetObjectItem(json, "title")))));
   cJSON_Delete(json);
 
   LinkedDict$add(chatDict, id, res);
@@ -183,13 +183,13 @@ char* getBestPhotoUrl(cJSON* arr){
   int resIndex = -1;
   cJSON* e;
   cJSON_ArrayForEach(e, arr){
-    char type = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(e, "type"))))[0];
+    char type = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(e, "type"))))[0];
     int i = 0;
     while(rom[i] && rom[i] != type)i++;
     if(!rom[i])i = -1;
     if(resIndex < i){
       resIndex = i;
-      res = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(e, "url"))));
+      res = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(e, "url"))));
     }
   }
   return res;
@@ -200,7 +200,7 @@ char* getBestPhotoUrl(cJSON* arr){
 void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
   char* pre = Buffer$toString(prefix);
 
-  char* text = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(json, "text"))));
+  char* text = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(json, "text"))));
   if(text[0]){
     Buffer$untrim(b);
     Buffer$appendString(b, pre);
@@ -211,16 +211,16 @@ void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
   }
   if(text[0])Buffer$printf(b, "\n%s\n%s", pre, pre);
 
-  cJSON* reply = cJSON_GetObjectItemCaseSensitive(json, "reply_message");
+  cJSON* reply = cJSON_GetObjectItem(json, "reply_message");
   ATTACHMENT_MSG("↩ ", reply);
 
-  cJSON* fwd = cJSON_GetObjectItemCaseSensitive(json, "fwd_messages");
+  cJSON* fwd = cJSON_GetObjectItem(json, "fwd_messages");
   cJSON* msg;
   cJSON_ArrayForEach(msg, fwd){
     ATTACHMENT_MSG("➕ ", msg);
   }
 
-  cJSON* attachments = cJSON_GetObjectItemCaseSensitive(json, "attachments");
+  cJSON* attachments = cJSON_GetObjectItem(json, "attachments");
   cJSON* attachment;
   cJSON_ArrayForEach(attachment, attachments){
     if(!Buffer$endsWith(b, pre)){
@@ -228,11 +228,11 @@ void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
       Buffer$appendString(b, pre);
     }
 
-    char* type = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(attachment, "type"))));
-    cJSON* inner = E(cJSON_GetObjectItemCaseSensitive(attachment, type));
+    char* type = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(attachment, "type"))));
+    cJSON* inner = E(cJSON_GetObjectItem(attachment, type));
     if(strcmp(type, "photo") == 0){
       Buffer$printf(b, "🌅 %s",
-        E(getBestPhotoUrl(E(cJSON_GetObjectItemCaseSensitive(E(cJSON_GetObjectItemCaseSensitive(attachment, type)), "sizes"))))
+        E(getBestPhotoUrl(E(cJSON_GetObjectItem(E(cJSON_GetObjectItem(attachment, type)), "sizes"))))
       );
     }else if(strcmp(type, "video") == 0){
       ATTACHMENT_LINK("📽");
@@ -252,7 +252,7 @@ void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
       ATTACHMENT_URL_linkmp3("🎤"); // todo: attach
     }else if(strcmp(type, "sticker") == 0){
       Buffer$printf(b, "➕ https://vk.com/sticker/1-%d-512b",
-        E(cJSON_GetObjectItemCaseSensitive(E(cJSON_GetObjectItemCaseSensitive(attachment, type)), "sticker_id"))->valueint
+        E(cJSON_GetObjectItem(E(cJSON_GetObjectItem(attachment, type)), "sticker_id"))->valueint
       );
     }else{
       // audio_playlist
@@ -266,11 +266,11 @@ void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
       Buffer$untrim(b);
       Buffer$appendString(b, pre);
     }
-    cJSON* peer_id = cJSON_GetObjectItemCaseSensitive(json, "peer_id");
+    cJSON* peer_id = cJSON_GetObjectItem(json, "peer_id");
     Z(formatCopyrightString(b,
-      E(cJSON_GetObjectItemCaseSensitive(json, "from_id"))->valueint,
+      E(cJSON_GetObjectItem(json, "from_id"))->valueint,
       peer_id ? peer_id->valueint : 0,
-      E(cJSON_GetObjectItemCaseSensitive(json, "date"))->valueint
+      E(cJSON_GetObjectItem(json, "date"))->valueint
     ));
   }else{
     Buffer$untrim(b);
@@ -299,30 +299,30 @@ void* formatAttachments_thread(void* voidptr){
   ));
   Buffer$reset(&b);
 
-  cJSON* profiles = cJSON_GetObjectItemCaseSensitive(response, "profiles");
+  cJSON* profiles = cJSON_GetObjectItem(response, "profiles");
   cJSON* profile;
   cJSON_ArrayForEach(profile, profiles){
-    int id = E(cJSON_GetObjectItemCaseSensitive(profile, "id"))->valueint;
+    int id = E(cJSON_GetObjectItem(profile, "id"))->valueint;
     if(LinkedDict$get(chatDict, id))continue;
     Buffer userBuff = Buffer$new();
     FROMAT_USER(userBuff, profile);
     LinkedDict$add(chatDict, id, Buffer$toString(&userBuff));
   }
 
-  cJSON* groups = cJSON_GetObjectItemCaseSensitive(response, "groups");
+  cJSON* groups = cJSON_GetObjectItem(response, "groups");
   cJSON* group;
   cJSON_ArrayForEach(group, groups){
-    int id = -E(cJSON_GetObjectItemCaseSensitive(group, "id"))->valueint;
+    int id = -E(cJSON_GetObjectItem(group, "id"))->valueint;
     if(LinkedDict$get(chatDict, id))continue;
     Buffer userBuff = Buffer$new();
     Buffer$printf(&userBuff, "https://vk.com/%s/",
-      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(group, "screen_name"))))
+      E(cJSON_GetStringValue(E(cJSON_GetObjectItem(group, "screen_name"))))
     );
     LinkedDict$add(chatDict, id, Buffer$toString(&userBuff));
   }
 
   Buffer prefixBuffer = Buffer$new();
-  formatAttachments(&b, E(cJSON_GetArrayItem(E(cJSON_GetObjectItemCaseSensitive(response, "items")), 0)), &prefixBuffer);
+  formatAttachments(&b, E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(response, "items")), 0)), &prefixBuffer);
   Buffer$delete(&prefixBuffer);
 
   struct timeval stop;
@@ -360,7 +360,7 @@ Potato* Potato$new(cJSON* json){
 
   int t = E(cJSON_GetArrayItem(json, 3))->valueint;
   if(t > 2000000000){
-    p->user = atoi(E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(E(cJSON_GetArrayItem(json, 6)), "from")))));
+    p->user = atoi(E(cJSON_GetStringValue(E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(json, 6)), "from")))));
     p->chat = t;
   }else{
     int flags = E(cJSON_GetArrayItem(json, 2))->valueint;
@@ -371,15 +371,15 @@ Potato* Potato$new(cJSON* json){
   cJSON* attachments = E(cJSON_GetArrayItem(json, 7));
   Z(!cJSON_IsObject(attachments));
   if(cJSON_GetArraySize(attachments)){
-    char* attach1_type = cJSON_GetStringValue(cJSON_GetObjectItemCaseSensitive(attachments, "attach1_type"));
+    char* attach1_type = cJSON_GetStringValue(cJSON_GetObjectItem(attachments, "attach1_type"));
     int isSticker = attach1_type && strcmp(attach1_type, "sticker") == 0;
     if(isSticker){
       APPEND_TO_POTATO_TEXT(
         "\n➕ https://vk.com/sticker/1-%s-512b\n",
-        E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(attachments, "attach1"))))
+        E(cJSON_GetStringValue(E(cJSON_GetObjectItem(attachments, "attach1"))))
       );
     }
-    if(!isSticker || cJSON_GetObjectItemCaseSensitive(attachments, "reply")){
+    if(!isSticker || cJSON_GetObjectItem(attachments, "reply")){
       #ifndef DISABLE_FORMAT
         START_THREAD(formatAttachments_thread, p);
       #else

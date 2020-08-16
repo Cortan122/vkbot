@@ -7,6 +7,8 @@
 #define USE_PTHREADS
 #define MY_ID 560101729
 
+#define cJSON_GetObjectItem cJSON_GetObjectItemCaseSensitive
+
 typedef void (JSONCallback)(cJSON*);
 
 char* getTimeString();
@@ -14,10 +16,11 @@ void waitForInternet();
 char* find(char* name, char* ext);
 char* findToken(char* name);
 
-// char* request(char* url, int post);
+char* request(char* url);
 int printJson(cJSON* json);
 cJSON* apiRequest(char* endpoint, char* token, ...); //  __attribute__((sentinel))
 cJSON* postFile(char* url, char* name, char* path);
+char* uploadFile(char* path, char* type, char* destination, char* token);
 void longpoll(char* token, JSONCallback callback);
 char* getRandomId();
 

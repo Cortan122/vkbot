@@ -9,8 +9,9 @@
   else if(STARTS_WITH(line, cmd)){ \
     if(attachment.len)Buffer$appendChar(&attachment, ','); \
     char* path = line + strlen(cmd); \
-    while(strlen(path) && path[strlen(path)-1] < ' ')path[strlen(path)-1] = '\0'; \
-    free(Buffer$appendString(&attachment, E(uploadFile(path, type)))); \
+    int len = strlen(path); \
+    while(len && path[len-1] < ' ')path[--len] = '\0'; \
+    free(Buffer$appendString(&attachment, E(uploadFile(path, type, destination, token)))); \
   }
 
 struct option longOptionRom[] = {
@@ -107,59 +108,6 @@ void parseArgv(int argc, char** argv){
   }
 }
 
-char* uploadFile(char* path, char* type){
-  Buffer result = Buffer$new();
-  cJSON* res = NULL;
-  bool isPhoto = strcmp(type, "photo") == 0;
-  if(isPhoto){
-    res = E(apiRequest("photos.getMessagesUploadServer", token, "peer_id", destination, NULL));
-  }else{
-    if(strcmp(path + strlen(path) - 4, ".mp3") == 0)type = "audio_message";
-    res = E(apiRequest("docs.getMessagesUploadServer", token, "type", type, "peer_id", destination, NULL));
-  }
-
-  // todo: cache upload servers
-  char* upload_url = E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(res, "upload_url"))));
-  cJSON* res2 = E(postFile(upload_url, isPhoto?"photo":"file", path));
-  cJSON_Delete(res);
-  res = res2;
-
-  if(isPhoto){
-    Buffer$printf(&result, "%d", E(cJSON_GetObjectItemCaseSensitive(res, "server"))->valueint);
-    res2 = E(apiRequest("photos.saveMessagesPhoto", token,
-      "photo", E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(res, "photo")))),
-      "hash", E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(res, "hash")))),
-      "server", Buffer$toString(&result),
-      NULL
-    ));
-    Buffer$reset(&result);
-    cJSON_Delete(res);
-    res = res2;
-    cJSON* arr = E(cJSON_GetArrayItem(res, 0));
-    Buffer$printf(&result, "photo%d_%d_%s",
-      E(cJSON_GetObjectItemCaseSensitive(arr, "owner_id"))->valueint,
-      E(cJSON_GetObjectItemCaseSensitive(arr, "id"))->valueint,
-      E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(arr, "access_key"))))
-    );
-  }else{
-    res2 = E(apiRequest("docs.save", token, "file", E(cJSON_GetStringValue(E(cJSON_GetObjectItemCaseSensitive(res, "file")))), NULL));
-    cJSON_Delete(res);
-    res = res2;
-    cJSON* arr = E(cJSON_GetObjectItemCaseSensitive(res, type));
-    Buffer$printf(&result, "doc%d_%d",
-      E(cJSON_GetObjectItemCaseSensitive(arr, "owner_id"))->valueint,
-      E(cJSON_GetObjectItemCaseSensitive(arr, "id"))->valueint
-    );
-  }
-  cJSON_Delete(res);
-  return Buffer$toString(&result);
-
-  finally:
-  Buffer$delete(&result);
-  cJSON_Delete(res);
-  return NULL;
-}
-
 bool slurpMessage(){
   Buffer message = Buffer$new();
   Buffer attachment = Buffer$new();
@@ -195,7 +143,7 @@ int main(int argc, char** argv){
 
   if(message || filepath){
     Buffer b = Buffer$new();
-    if(filepath)free(Buffer$appendString(&b, E(uploadFile(filepath, filetype))));
+    if(filepath)free(Buffer$appendString(&b, E(uploadFile(filepath, filetype, destination, token))));
     sendMessage(token, destination, "message", message ?: "", "attachment", Buffer$toString(&b));
     Buffer$delete(&b);
     free(message);
