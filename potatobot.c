@@ -67,7 +67,7 @@
 double humanredableSize(int bytes, char* out){
   static const char sizes[] = " kMGTPE";
   double len = bytes;
-  int order = 0;
+  unsigned int order = 0;
   while(len >= 1024 && order < sizeof(sizes) - 1){
     order++;
     len /= 1024;
@@ -485,10 +485,6 @@ void* sendPotato_thread(void* voidptr){
     return NULL;
   }
 
-  time_t rawtime = time(NULL);
-  struct tm* today = localtime(&rawtime);
-  struct tm* posttime = localtime(&p->time);
-
   Buffer b = Buffer$new();
   Buffer$appendString(&b, p->text);
   if(!(b.len && b.body[b.len-1] == '\n'))Buffer$appendString(&b, "\n\n");
@@ -562,7 +558,7 @@ int main(){
   longpoll("token.txt", potato_callback);
   potato_deinit();
 
-  finally:
+  // finally:
   fflush(stdout);
   fflush(stderr);
   return 0;

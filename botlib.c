@@ -109,7 +109,8 @@ static char* _request_impl(char* url, int post, ...){
     gettimeofday(&start, NULL);
   #endif
 
-  CURL* curl = E(curl_easy_init());
+  CURL* curl = NULL;
+  curl = E(curl_easy_init());
 
   Buffer b = Buffer$new();
   if(post == 1){
@@ -204,7 +205,6 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
 
   va_list ap;
   va_start(ap, token);
-  int i = 0;
   while(1){
     char* v1 = va_arg(ap, char*);
     if(v1 == NULL)break; // yay у нас кончились все аргументы
@@ -218,7 +218,9 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
 
   // todo: fixme
   #ifdef USE_RATE_LIMIT
-    int j = 0;
+    #ifdef LOG_REQUEST_TIMES
+      int j = 0;
+    #endif
     #ifdef UNSAFE_ENDPOINT
       if(strcmp(UNSAFE_ENDPOINT, endpoint) == 0)
     #endif
@@ -375,6 +377,7 @@ void longpoll(char* token, JSONCallback callback){
         return;
         case 3:
         ts = -1;
+        // fallthrough
         case 2:
         E(getLongpollLink(token, &b));
         case 1:;

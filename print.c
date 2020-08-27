@@ -11,6 +11,6 @@ int main(){
 
   longpoll("token.txt", callback);
 
-  finally:
+  // finally:
   return 0;
 }

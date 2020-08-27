@@ -26,7 +26,7 @@ char* getRandomId();
 
 cJSON* gapiRequest(char* spreadsheetid, char* range, char* token);
 
-volatile extern sig_atomic_t longpollFlag;
+extern volatile sig_atomic_t longpollFlag;
 
 #define sendMessage(token, peer_id, ...) ({ \
   char* t = getRandomId(); \

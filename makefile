@@ -1,5 +1,5 @@
 LDFLAGS=-lcurl -lpthread -lm
-CFLAGS=-g -Og -fdollars-in-identifiers
+CFLAGS=-g -Og -fdollars-in-identifiers -Wall -Wextra -Wno-parentheses
 EXECUTABLES=print potatobot whoami concurrencytest send cronbot deadlinebot
 # CC=gcc
 

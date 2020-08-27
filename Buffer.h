@@ -8,7 +8,7 @@
       __FUNCTION__ \
     ); fflush(stderr); goto finally;})
   #define E(code) (code ?: (THROW(#code,"%s","NULL"),(__typeof__(code))NULL))
-  #define Z(code) (({__typeof__(code) t = code; if(t)THROW(#code,"%d",t);}),0)
+  #define Z(code) ({__typeof__(code) t = code; if(t)THROW(#code,"%d",t);0;})
 #else
   #define E(x) x
   #define Z(x) x
