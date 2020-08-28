@@ -33,6 +33,27 @@ char* message = NULL;
 bool slurp = false;
 FILE* slurpfile;
 
+char* parseDestination(char* src){
+  bool isChat = src[0]=='c' || src[0]=='C';
+  src += isChat;
+
+  int val;
+  if(sscanf(src, "%d", &val) != 1)goto fail;
+
+  static char res[20];
+  snprintf(res, sizeof(res), "%d", val);
+  if(strcmp(res, src))goto fail;
+  if(!isChat)return src;
+
+  snprintf(res, sizeof(res), "%d", val+2000000000);
+  return res;
+
+  fail:
+  fprintf(stderr, "invalid destination '%s'\n", src-isChat);
+  fflush(stderr);
+  return NULL;
+}
+
 void parseArgv(int argc, char** argv){
   while(1){
     int optionIndex = 0;
@@ -45,7 +66,7 @@ void parseArgv(int argc, char** argv){
       case '?':
         exit(1);
       case 't':
-        destination = optarg; // todo: strcmp(itoa(atoi(p)), p) == 0
+        destination = parseDestination(optarg);
         break;
       case 'T':
         token = optarg;
@@ -56,7 +77,13 @@ void parseArgv(int argc, char** argv){
       case 's':
         slurp = true;
         slurpfile = stdin;
-        if(optarg)slurpfile = fopen(optarg, "r");
+        if(optarg){
+          slurpfile = fopen(optarg, "r");
+          if(!slurpfile){
+            perror(optarg);
+            exit(1);
+          }
+        }
         break;
       case 'n':
         token = "bottoken.txt";

@@ -30,7 +30,7 @@ int proccesLine(cJSON* line, Buffer* b){
       Z(system("\"$plot\""));
       free(plot);
 
-      free(attachment); // todo
+      free(attachment); // todo: append to attachment, in case we have multiple attachments
       attachment = E(uploadFile("corona.png", "photo", SHLEX, "bottoken.txt"));
       Z(remove("corona.png"));
     }else if(STARTS_WITH(str, "#corona")){
