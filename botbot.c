@@ -113,7 +113,6 @@ void callback(cJSON* json, void* arg){
     }
     if(processCommand(json, rom+i) == 1)break; // we can only trigger one command at a time (or can we¿?)
   }
-  finally:;
 }
 
 void* startLongpoll_thread(void* arg){

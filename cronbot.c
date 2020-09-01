@@ -141,10 +141,41 @@ char* getNewCrontab(){
   return NULL;
 }
 
+void updateAnimeUrl(){
+  Buffer b = Buffer$new();
+  cJSON* table = NULL;
+  char* path = NULL;
+
+  table = E(gapiRequest("1HTom_rLaBVQFYkWGJWEM8v1HQSZj5pHkrUDbpYVtH1g", "anime!D3", NULL));
+  char* url = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(E(cJSON_GetArrayItem(table, 0)), 0))));
+
+  // todo: what if it doesn't exist
+  path = E(find("twixtractor/animeSearchUrl.txt", NULL)); // todo: fix hardcoded path
+  Buffer$appendFile(&b, path);
+  Buffer$trimEnd(&b);
+
+  if(strcmp(Buffer$toString(&b), url)){
+    printf("Replacing anime url at %s\n", getTimeString());
+    fflush(stdout);
+    FILE* fp = E(fopen(path, "w"));
+    fputs(url, fp);
+    fputc('\n', fp); // fputs is stupid (no \n)
+    Z(fclose(fp));
+  }
+
+  finally:;
+  Buffer$delete(&b);
+  cJSON_Delete(table);
+  free(path);
+}
+
 int main(int argc, char** argv){
   srand(time(NULL));
 
   if(argc == 2 && strcmp(argv[1], "--restart") == 0)restart = 1;
+
+  updateAnimeUrl();
+  if(argc == 2 && strcmp(argv[1], "--anime") == 0)return 0;
 
   Buffer b = Buffer$new();
   Buffer$popen(&b, "crontab -l"); // explicitly no Z()
@@ -158,9 +189,6 @@ int main(int argc, char** argv){
       }
     }
   }
-
-  // todo:
-  // curl "https://sheets.googleapis.com/v4/spreadsheets/1HTom_rLaBVQFYkWGJWEM8v1HQSZj5pHkrUDbpYVtH1g/values/anime!D3?key=$(cat apikey.txt)" | jq -r .values[0][0]
 
   char* old = Buffer$toString(&b)+i;
   char* new = E(getNewCrontab());
