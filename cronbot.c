@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 char* startScriptPath = NULL;
 int restart = 0;
@@ -157,6 +158,9 @@ int main(int argc, char** argv){
       }
     }
   }
+
+  // todo:
+  // curl "https://sheets.googleapis.com/v4/spreadsheets/1HTom_rLaBVQFYkWGJWEM8v1HQSZj5pHkrUDbpYVtH1g/values/anime!D3?key=$(cat apikey.txt)" | jq -r .values[0][0]
 
   char* old = Buffer$toString(&b)+i;
   char* new = E(getNewCrontab());

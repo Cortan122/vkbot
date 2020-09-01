@@ -64,7 +64,7 @@
   p->text = Buffer$toString(&b); \
 })
 
-double humanredableSize(int bytes, char* out){
+static double humanredableSize(int bytes, char* out){
   static const char sizes[] = " kMGTPE";
   double len = bytes;
   unsigned int order = 0;
@@ -77,7 +77,7 @@ double humanredableSize(int bytes, char* out){
   return len;
 }
 
-void printMallocStats(){
+static void printMallocStats(){
   struct mallinfo info = mallinfo();
   char c1, c2;
   double d1 = humanredableSize(info.uordblks, &c1);
@@ -107,7 +107,7 @@ typedef struct Potato {
 
 LinkedDict* chatDict = NULL;
 
-char* getUserName(int id){
+static char* getUserName(int id){
   if(id == 0)return NULL;
   char* res = LinkedDict$get(chatDict, id);
   if(res)return res;
@@ -139,7 +139,7 @@ char* getUserName(int id){
   return res;
 }
 
-char* getChatName(int id){
+static char* getChatName(int id){
   if(id == 0)return "какаято непонятная беседа";
   else if(id < 2000000000)return getUserName(id);
   char* res = LinkedDict$get(chatDict, id);
@@ -157,7 +157,7 @@ char* getChatName(int id){
   return res;
 }
 
-int formatCopyrightString(Buffer* b, int user, int chat, time_t date){
+static int formatCopyrightString(Buffer* b, int user, int chat, time_t date){
   time_t rawtime = time(NULL);
   struct tm* today = localtime(&rawtime);
   int today_tm_yday = today->tm_yday;
@@ -177,7 +177,7 @@ int formatCopyrightString(Buffer* b, int user, int chat, time_t date){
   return 1;
 }
 
-char* getBestPhotoUrl(cJSON* arr){
+static char* getBestPhotoUrl(cJSON* arr){
   char* rom = "smxyzw";
   char* res = NULL;
   int resIndex = -1;
@@ -197,7 +197,7 @@ char* getBestPhotoUrl(cJSON* arr){
   return NULL;
 }
 
-void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
+static void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
   char* pre = Buffer$toString(prefix);
 
   char* text = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(json, "text"))));
@@ -280,7 +280,7 @@ void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
   finally:;
 }
 
-void* formatAttachments_thread(void* voidptr){
+static void* formatAttachments_thread(void* voidptr){
   Potato* p = voidptr;
   cJSON* response = NULL;
   Buffer b = Buffer$new();
@@ -347,7 +347,7 @@ void* formatAttachments_thread(void* voidptr){
   return NULL;
 }
 
-Potato* Potato$new(cJSON* json){
+static Potato* Potato$new(cJSON* json){
   Potato* p = malloc(sizeof(Potato));
 
   cJSON* str = E(cJSON_GetArrayItem(json, 5));
@@ -396,7 +396,7 @@ Potato* Potato$new(cJSON* json){
   return NULL;
 }
 
-void Potato$delete(Potato* p){
+static void Potato$delete(Potato* p){
   if(p == NULL)return;
   free(p->text);
   free(p);
@@ -409,11 +409,11 @@ typedef struct Bag {
   int firstIndex;
 } Bag;
 
-void Bag$_init(Bag* b){
+static void Bag$_init(Bag* b){
   memset(b->body + b->len, 0, (b->cap - b->len)*sizeof(Potato*));
 }
 
-int Bag$_realloc(Bag* b, int oldlen){
+static int Bag$_realloc(Bag* b, int oldlen){
   int newlen = b->len;
   if(b->len >= b->cap){
     b->cap = MAX(b->cap*2, b->len+1);
@@ -426,7 +426,7 @@ int Bag$_realloc(Bag* b, int oldlen){
   return 0;
 }
 
-Bag* Bag$new(){
+static Bag* Bag$new(){
   Bag* b = malloc(sizeof(Bag));
   b->cap = 16;
   b->len = 0;
@@ -436,14 +436,14 @@ Bag* Bag$new(){
   return b;
 }
 
-void Bag$delete(Bag* b){
+static void Bag$delete(Bag* b){
   if(b == NULL)return;
   for(int i = 0; i < b->len; i++)Potato$delete(b->body[i]);
   free(b->body);
   free(b);
 }
 
-void Bag$add(Bag* b, int id, Potato* val){
+static void Bag$add(Bag* b, int id, Potato* val){
   if(val->user < 0){
     // это сообщение от сообщества, а им нечего скрывать
     // но если это крутое сообщение со всякими вложениями и у нас включены потоки
@@ -463,7 +463,7 @@ void Bag$add(Bag* b, int id, Potato* val){
   b->body[id] = val;
 }
 
-Potato* Bag$get(Bag* b, int id){
+static Potato* Bag$get(Bag* b, int id){
   id -= b->firstIndex;
   if(id < 0 || id >= b->len)return NULL;
   Potato* r = b->body[id];
@@ -473,7 +473,7 @@ Potato* Bag$get(Bag* b, int id){
 
 Bag* potatoBag = NULL;
 
-void* sendPotato_thread(void* voidptr){
+static void* sendPotato_thread(void* voidptr){
   Potato* p = voidptr;
 
   if(p == NULL || p == NULL+1){
@@ -499,7 +499,7 @@ void* sendPotato_thread(void* voidptr){
   return NULL;
 }
 
-void sendPotato(Potato* p, int edit){
+static void sendPotato(Potato* p, int edit){
   if(p){
     if(p->user == MY_ID && p->chat != 2000000008)return;
     p->edit = edit;
@@ -509,8 +509,10 @@ void sendPotato(Potato* p, int edit){
 
   START_THREAD(sendPotato_thread, p);
   return;
-  finally:
-  perror("");
+  #ifdef USE_PTHREADS
+    finally:
+    perror("");
+  #endif
 }
 
 void potato_callback(cJSON* json){
@@ -551,7 +553,7 @@ void potato_deinit(){
   LinkedDict$delete(chatDict);
 }
 
-int main(){
+__attribute__((weak)) int main(){
   mallopt(M_CHECK_ACTION, 0b001);
 
   potato_init();

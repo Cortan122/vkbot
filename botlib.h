@@ -10,6 +10,7 @@
 #define cJSON_GetObjectItem cJSON_GetObjectItemCaseSensitive
 
 typedef void (JSONCallback)(cJSON*);
+typedef void (JSONCallbackEx)(cJSON*, void*);
 
 char* getTimeString();
 void waitForInternet();
@@ -22,6 +23,7 @@ cJSON* apiRequest(char* endpoint, char* token, ...); //  __attribute__((sentinel
 cJSON* postFile(char* url, char* name, char* path);
 char* uploadFile(char* path, char* type, char* destination, char* token);
 void longpoll(char* token, JSONCallback callback);
+void longpollEx(char* token, JSONCallbackEx callback, void* arg);
 char* getRandomId();
 
 cJSON* gapiRequest(char* spreadsheetid, char* range, char* token);

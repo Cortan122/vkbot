@@ -12,6 +12,7 @@ void* sendTestMessage(void* arg){
 }
 
 int main(){
+  #ifdef USE_PTHREADS
   START_THREAD(sendTestMessage, (void*)1);
   START_THREAD(sendTestMessage, (void*)2);
   START_THREAD(sendTestMessage, (void*)3);
@@ -21,7 +22,8 @@ int main(){
   sleep(10);
 
   finally:
-  fflush(stdout);
-  fflush(stderr);
   return 0;
+  #else
+  return 1;
+  #endif
 }

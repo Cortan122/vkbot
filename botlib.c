@@ -349,7 +349,7 @@ static Buffer* getLongpollLink(char* token, Buffer* b){
 
 volatile sig_atomic_t longpollFlag;
 
-void longpoll(char* token, JSONCallback callback){
+void longpollEx(char* token, JSONCallbackEx callback, void* arg){
   Buffer b = Buffer$new();
   E(getLongpollLink(token, &b));
   int ts = -1; // todo?: read file?
@@ -385,13 +385,22 @@ void longpoll(char* token, JSONCallback callback){
       continue;
     }
 
-    for(cJSON* item = E(cJSON_GetObjectItem(json, "updates"))->child; item; item = item->next)callback(item);
+    for(cJSON* item = E(cJSON_GetObjectItem(json, "updates"))->child; item; item = item->next)callback(item, arg);
 
     cJSON_Delete(json);
   }
 
   finally:
   Buffer$delete(&b);
+}
+
+static void longpoll_internalCallback(cJSON* json, void* arg){
+  JSONCallback* callback = arg;
+  callback(json);
+}
+
+void longpoll(char* token, JSONCallback callback){
+  longpollEx(token, longpoll_internalCallback, callback);
 }
 
 char* getRandomId(){
