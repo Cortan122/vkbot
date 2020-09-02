@@ -13,11 +13,11 @@ else
   CFLAGS += -g -Og
 endif
 
-all: $(EXECUTABLES) token.txt bottoken.txt apikey.txt
+all: $(EXECUTABLES) token.txt bottoken.txt apikey.txt pybottoken.txt
 $(EXECUTABLES): $(LIBS)
 $(LIBS): $(HEADERS)
 $(patsubst %,%.o,$(EXECUTABLES)): $(HEADERS)
-botbot: potatobot.o
+botbot: potatobot.o etcbot.o
 # botbot: CC=gcc # tcc does not support __attribute__((weak))
 
 run: all

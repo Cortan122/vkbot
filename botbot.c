@@ -6,46 +6,37 @@
 #include <sys/wait.h>
 #include <stdbool.h>
 
-typedef void (Action)();
-
-typedef struct Command {
-  char* token;
-  char* cmd;
-  void* callback;
-  Action* init;
-  Action* deinit;
-} Command;
-
-typedef struct ParsedCommand {
-  char* token;
-  char* text;
-  int chat;
-  int user;
-  int argc;
-  char** argv;
-  // todo?: char** rest;
-  // const Command* rom;
-} ParsedCommand;
-
-typedef void (CommandCallback)(ParsedCommand*);
-
 void potato_callback(cJSON* json);
 void potato_init();
 void potato_deinit();
+void startbot_command(ParsedCommand* cmd);
+void pybot_command(ParsedCommand* cmd);
 
 const Command rom[] = {
   { "token.txt", NULL, potato_callback, potato_init, potato_deinit },
-  // { "token.txt", "/start", startbot_callback, NULL, NULL },
-  // { "bottoken.txt", "/start", startbot_callback, NULL, NULL },
-  // { "token.txt", "/python", pybot_callback, NULL, NULL },
-  // { "pybottoken.txt", "*/python", pybot_callback, NULL, NULL },
+  { "token.txt", "/start", startbot_command, NULL, NULL },
+  { "bottoken.txt", "/start", startbot_command, NULL, NULL },
+  { "token.txt", "/python", pybot_command, NULL, NULL },
+  { "pybottoken.txt", "*/python", pybot_command, NULL, NULL },
   { NULL }
 };
+
+char* toString(int v){
+  Buffer b = Buffer$new();
+  Buffer$printf(&b, "%d", v);
+  return Buffer$toString(&b);
+}
+
+bool startsWithCommand(char* text, char* cmd){
+  int textlen = strlen(text);
+  int cmdlen = strlen(cmd);
+  return textlen >= cmdlen && memcmp(text, cmd, cmdlen) == 0 && text[cmdlen] <= ' ';
+}
 
 int processCommand(cJSON* json, const Command* rom){
   ParsedCommand* res = NULL;
   char* textDup = NULL;
-  int retval = -1;
+  int retval = -1; // -1 = error, 0 = no match, 1 = yes match
 
   int type = E(cJSON_GetArrayItem(json, 0))->valueint;
   if(type != 5 && type != 4)return 0;
@@ -54,17 +45,28 @@ int processCommand(cJSON* json, const Command* rom){
 
   char* text = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5))));
   bool isAuto = rom->cmd[0] == '*';
-  if(!isAuto && !STARTS_WITH(text, rom->cmd))return 0; // todo: check for space
+  int flags = E(cJSON_GetArrayItem(json, 2))->valueint;
+  if(isAuto && (flags&2))return 0;
+  if(!isAuto && !startsWithCommand(text, rom->cmd))return 0;
 
-  res = malloc(sizeof(ParsedCommand));
-  res->argv = NULL;
+  res = calloc(sizeof(ParsedCommand), 1);
+  res->event = json;
   res->user = res->chat = chatid;
   res->token = rom->token;
   res->text = text;
   // res->rom = rom;
   if(chatid > 2000000000){
+    res->replyId = E(cJSON_GetArrayItem(json, 1))->valueint;
     res->user = atoi(E(cJSON_GetStringValue(E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(json, 6)), "from")))));
+    if(isAuto){
+      retval = 0;
+      goto finally;
+    }
   }
+
+  res->str_chat = toString(res->chat);
+  res->str_user = toString(res->user);
+  res->str_replyId = toString(res->replyId);
 
   // parse argv
   // todo: do something about <br> tags and double spaces
@@ -94,9 +96,14 @@ int processCommand(cJSON* json, const Command* rom){
 
   CommandCallback* cb = rom->callback;
   cb(res);
-  retval = 1; // or 0?
+  retval = 1;
   finally:;
-  if(res)free(res->argv);
+  if(res){
+    free(res->argv);
+    free(res->str_chat);
+    free(res->str_user);
+    free(res->str_replyId);
+  }
   free(res);
   free(textDup);
   return retval;
