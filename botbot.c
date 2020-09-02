@@ -5,19 +5,23 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <stdbool.h>
+#include <time.h>
+#include <sys/time.h>
 
 void potato_callback(cJSON* json);
 void potato_init();
 void potato_deinit();
 void startbot_command(ParsedCommand* cmd);
 void pybot_command(ParsedCommand* cmd);
+void read_command(ParsedCommand* cmd);
 
 const Command rom[] = {
-  { "token.txt", NULL, potato_callback, potato_init, potato_deinit },
   { "token.txt", "/start", startbot_command, NULL, NULL },
   { "bottoken.txt", "/start", startbot_command, NULL, NULL },
   { "token.txt", "/python", pybot_command, NULL, NULL },
   { "pybottoken.txt", "*/python", pybot_command, NULL, NULL },
+  { "token.txt", "/read", read_command, NULL, NULL },
+  { "token.txt", NULL, potato_callback, potato_init, potato_deinit },
   { NULL }
 };
 
@@ -87,15 +91,21 @@ int processCommand(cJSON* json, const Command* rom){
   }
   res->argv[res->argc] = NULL; // argv is null-terminated
 
-  // print all the args
-  printf("Running command \x1b[36m%s\x1b[0m as \x1b[33m%s\x1b[0m with argv = [", rom->cmd, rom->token);
-  for(int i = 0; i < res->argc; i++){
-    printf("\x1b[32m\"%s\"\x1b[0m%s", res->argv[i], (i == res->argc-1)?"]\n":", ");
-  }
-  fflush(stdout);
-
+  struct timeval start;
+  gettimeofday(&start, NULL);
   CommandCallback* cb = rom->callback;
   cb(res);
+  struct timeval stop;
+  gettimeofday(&stop, NULL);
+
+  // print all the args
+  printf("Running command \e[36m%s\e[0m as \e[33m%s\e[0m with argv = [", rom->cmd, rom->token);
+  for(int i = 0; i < res->argc; i++){
+    printf("\e[32m\"%s\"\e[0m%s", res->argv[i], (i == res->argc-1)?"":", ");
+  }
+  printf("] took \e[34m%6.3f\e[0ms\n", ((stop.tv_sec - start.tv_sec) * 1000000 + stop.tv_usec - start.tv_usec)/1000000.0);
+  fflush(stdout);
+
   retval = 1;
   finally:;
   if(res){

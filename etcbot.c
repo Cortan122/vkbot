@@ -1,5 +1,7 @@
 #include "botlib.h"
 
+#include <string.h>
+
 static void respond(ParsedCommand* cmd, char* str){
   sendMessage(cmd->token, cmd->str_chat,
     "message", str,
@@ -26,7 +28,41 @@ void pybot_command(ParsedCommand* cmd){
   );
 }
 
-void readCommand(ParsedCommand* cmd){
+static const int chatIdMap[] = { 1, 8, 16, 17, 20, 19, 0 };
+
+void read_command(ParsedCommand* cmd){
+  // todo: fail gracefully
   if(cmd->user != MY_ID)return;
-  // todo
+  if(cmd->chat < 2000000000)return;
+
+  int botid = 0;
+  for(; chatIdMap[botid]; botid++){
+    if(chatIdMap[botid] == cmd->chat - 2000000000)break;
+  }
+  botid++;
+
+  Buffer b = Buffer$new();
+  cJSON* r = NULL;
+  Buffer$printf(&b, "%d", botid + 2000000000);
+
+  char* msg = "read_command"; // todo?: random
+  sendMessage("bottoken.txt", Buffer$toString(&b), "message", msg);
+
+  r = E(apiRequest("messages.getConversationsById", "token.txt", "peer_ids", cmd->str_chat, NULL));
+  int id = E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0)), "last_message_id"))->valueint;
+  Buffer$reset(&b);
+  Buffer$printf(&b, "%d", id);
+  cJSON_Delete(r); r = NULL;
+  r = E(apiRequest("messages.getById", "token.txt", "message_ids", Buffer$toString(&b), NULL));
+  cJSON* lastMessage = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
+  char* msgtext = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(lastMessage, "text"))));
+
+  if(strcmp(msgtext, msg) == 0){
+    cJSON_Delete(E(apiRequest("messages.delete", "token.txt", "message_ids", Buffer$toString(&b), NULL)));
+    cJSON_Delete(E(apiRequest("messages.delete", "token.txt", "message_ids", cmd->str_replyId, NULL)));
+  }
+
+  finally:;
+  cJSON_Delete(r);
+  Buffer$delete(&b);
 }
