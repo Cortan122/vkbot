@@ -33,7 +33,7 @@ typedef struct ParsedCommand {
   int argc;
   char** argv;
   cJSON* event;
-  // todo?: char** rest;
+  // todo?: char** rest; (rest[i] = text + argv[i] - argv[0])
   // const Command* rom;
 } ParsedCommand;
 

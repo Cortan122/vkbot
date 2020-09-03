@@ -66,3 +66,48 @@ void read_command(ParsedCommand* cmd){
   cJSON_Delete(r);
   Buffer$delete(&b);
 }
+
+void stats_command(ParsedCommand* cmd){
+  cJSON* r = NULL;
+  Buffer b = Buffer$new();
+  Buffer lastidb = Buffer$new();
+
+  r = E(apiRequest("messages.getHistory", cmd->token, "count", "0", "peer_id", cmd->str_chat, NULL));
+  int count = E(cJSON_GetObjectItem(r, "count"))->valueint;
+
+  char* query = NULL;
+  int searchcount = 0;
+  if(cmd->argc > 1){
+    query = cmd->text + (cmd->argv[1] - cmd->argv[0]);
+    cJSON_Delete(r); r = NULL;
+    r = E(apiRequest("messages.search", cmd->token, "count", "0", "peer_id", cmd->str_chat, "q", query, NULL));
+    searchcount = E(cJSON_GetObjectItem(r, "count"))->valueint;
+  }
+
+  cJSON_Delete(r); r = NULL;
+  r = E(apiRequest("messages.getConversationsById", cmd->token, "peer_ids", cmd->str_chat, NULL));
+  cJSON* chat = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
+  int lastid = E(cJSON_GetObjectItem(chat, "last_message_id"))->valueint;
+  Buffer$printf(&lastidb, "%d", lastid);
+  int members = 0;
+  if(cmd->chat > 2000000000){
+    members = E(cJSON_GetObjectItem(E(cJSON_GetObjectItem(chat, "chat_settings")), "members_count"))->valueint;
+  }
+
+  cJSON_Delete(r); r = NULL;
+  r = E(apiRequest("messages.getById", cmd->token, "message_ids", Buffer$toString(&lastidb), NULL));
+  cJSON* lastMessage = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
+  int totalcount = E(cJSON_GetObjectItem(lastMessage, "conversation_message_id"))->valueint;
+
+  Buffer$printf(&b, "Всего сообщений: %'d\n", totalcount);
+  Buffer$printf(&b, "Неудалённых сообщений: %'d\n", count);
+  if(query)Buffer$printf(&b, "Сообщений '%s': %'d\n", query, searchcount);
+  if(members)Buffer$printf(&b, "Всего людей: %'d\n", members);
+
+  respond(cmd, Buffer$toString(&b));
+
+  finally:;
+  Buffer$delete(&b);
+  Buffer$delete(&lastidb);
+  cJSON_Delete(r);
+}

@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include <sys/time.h>
+#include <locale.h>
 
 void potato_callback(cJSON* json);
 void potato_init();
@@ -14,6 +15,7 @@ void potato_deinit();
 void startbot_command(ParsedCommand* cmd);
 void pybot_command(ParsedCommand* cmd);
 void read_command(ParsedCommand* cmd);
+void stats_command(ParsedCommand* cmd);
 
 const Command rom[] = {
   { "token.txt", "/start", startbot_command, NULL, NULL },
@@ -21,6 +23,7 @@ const Command rom[] = {
   { "token.txt", "/python", pybot_command, NULL, NULL },
   { "pybottoken.txt", "*/python", pybot_command, NULL, NULL },
   { "token.txt", "/read", read_command, NULL, NULL },
+  { "token.txt", "/stats", stats_command, NULL, NULL },
   { "token.txt", NULL, potato_callback, potato_init, potato_deinit },
   { NULL }
 };
@@ -140,6 +143,7 @@ void* startLongpoll_thread(void* arg){
 
 int main(){
   mallopt(M_CHECK_ACTION, 0b001);
+  setlocale(LC_NUMERIC, "en_US.UTF-8");
 
   int tokcap = 5;
   int toklen = 0;
