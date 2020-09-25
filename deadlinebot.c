@@ -170,7 +170,7 @@ int pinLastMessage(char* chat){
   fromid = E(cJSON_GetObjectItem(lastMessage, "from_id"))->valueint;
 
   if(fromid < 0){
-    cJSON_Delete(E(apiRequest("messages.pin", "token.txt", "peer_id", chat, "message_id", id, Buffer$toString(&b), NULL)));
+    cJSON_Delete(E(apiRequest("messages.pin", "token.txt", "peer_id", chat, "message_id", Buffer$toString(&b), NULL)));
   }else{
     printf("can't pin at %s\n", getTimeString());
     fflush(stdout);
