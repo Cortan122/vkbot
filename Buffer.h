@@ -1,4 +1,4 @@
-#ifndef NO_DEBUG
+#ifndef NDEBUG
   #define THROW(str,type,val) ({fprintf( \
       stderr, \
       "\x1b[33m%s\x1b[0m returned \x1b[35m"type"\x1b[0m on line \x1b[32m%d\x1b[0m in \x1b[33m%s\x1b[0m()\n", \

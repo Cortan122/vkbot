@@ -111,3 +111,7 @@ void stats_command(ParsedCommand* cmd){
   Buffer$delete(&lastidb);
   cJSON_Delete(r);
 }
+
+void friend_command(ParsedCommand* cmd){
+  cJSON_Delete(apiRequest("friends.add", cmd->token, "user_id", cmd->str_user, NULL));
+}
