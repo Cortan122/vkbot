@@ -115,3 +115,11 @@ void stats_command(ParsedCommand* cmd){
 void friend_command(ParsedCommand* cmd){
   cJSON_Delete(apiRequest("friends.add", cmd->token, "user_id", cmd->str_user, NULL));
 }
+
+void ded_command(ParsedCommand* cmd){
+  if(cmd->user != MY_ID){
+    respond(cmd, "ты что захотел меня сломать¿");
+    return;
+  }
+  system("./deadlinebot"); // todo
+}

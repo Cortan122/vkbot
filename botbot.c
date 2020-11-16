@@ -17,6 +17,7 @@ void pybot_command(ParsedCommand* cmd);
 void read_command(ParsedCommand* cmd);
 void stats_command(ParsedCommand* cmd);
 void friend_command(ParsedCommand* cmd);
+void ded_command(ParsedCommand* cmd);
 
 const Command rom[] = {
   { "token.txt", "/start", startbot_command, NULL, NULL },
@@ -26,6 +27,7 @@ const Command rom[] = {
   { "token.txt", "/read", read_command, NULL, NULL },
   { "token.txt", "/stats", stats_command, NULL, NULL },
   { "token.txt", "/friend", friend_command, NULL, NULL },
+  { "token.txt", "/ded", ded_command, NULL, NULL },
   { "token.txt", NULL, potato_callback, potato_init, potato_deinit },
   { NULL }
 };
