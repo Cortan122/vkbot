@@ -177,7 +177,7 @@ static int formatCopyrightString(Buffer* b, int user, int chat, time_t date){
   return 1;
 }
 
-static char* getBestPhotoUrl(cJSON* arr){
+char* getBestPhotoUrl(cJSON* arr){
   char* rom = "smxyzw";
   char* res = NULL;
   int resIndex = -1;

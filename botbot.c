@@ -18,6 +18,7 @@ void read_command(ParsedCommand* cmd);
 void stats_command(ParsedCommand* cmd);
 void friend_command(ParsedCommand* cmd);
 void ded_command(ParsedCommand* cmd);
+void banner_command(ParsedCommand* cmd);
 
 const Command rom[] = {
   { "token.txt", "/start", startbot_command, NULL, NULL },
@@ -28,6 +29,7 @@ const Command rom[] = {
   { "token.txt", "/stats", stats_command, NULL, NULL },
   { "token.txt", "/friend", friend_command, NULL, NULL },
   { "token.txt", "/ded", ded_command, NULL, NULL },
+  { "token.txt", "/banner", banner_command, NULL, NULL },
   { "token.txt", NULL, potato_callback, potato_init, potato_deinit },
   { NULL }
 };

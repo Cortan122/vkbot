@@ -1,6 +1,7 @@
 #include "botlib.h"
 
 #include <string.h>
+#include <stdbool.h>
 
 static void respond(ParsedCommand* cmd, char* str){
   sendMessage(cmd->token, cmd->str_chat,
@@ -122,4 +123,26 @@ void ded_command(ParsedCommand* cmd){
     return;
   }
   system("./deadlinebot"); // todo
+}
+
+char* getBestPhotoUrl(cJSON* arr);
+void banner_command(ParsedCommand* cmd){
+  cJSON* r = NULL;
+  Buffer lastidb = Buffer$new();
+  bool isBroken = true;
+
+  Buffer$printf(&lastidb, "%d", E(cJSON_GetArrayItem(cmd->event, 1))->valueint);
+  r = E(apiRequest("messages.getById", cmd->token, "message_ids", Buffer$toString(&lastidb), NULL));
+  cJSON* theMessage = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
+  cJSON* theAttachment = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(theMessage, "attachments")), 0));
+  cJSON* theSizes = E(cJSON_GetObjectItem(E(cJSON_GetObjectItem(theAttachment, "photo")), "sizes"));
+
+  Z(setenv("url", getBestPhotoUrl(theSizes), 1));
+  Z(system("tmux kill-session -t banner; tmux new -d -s banner sudo -u pi DISPLAY=:0 feh -FYZ \"$url\""));
+
+  isBroken = false;
+  finally:
+  Buffer$delete(&lastidb);
+  cJSON_Delete(r);
+  if(isBroken)respond(cmd, "чтото пошло нетак 😇");
 }
