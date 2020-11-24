@@ -10,6 +10,7 @@
 #include <locale.h>
 
 void potato_callback(cJSON* json);
+void poll_callback(cJSON* json);
 void potato_init();
 void potato_deinit();
 void startbot_command(ParsedCommand* cmd);
@@ -27,9 +28,11 @@ const Command rom[] = {
   { "pybottoken.txt", "*/python", pybot_command, NULL, NULL },
   { "token.txt", "/read", read_command, NULL, NULL },
   { "token.txt", "/stats", stats_command, NULL, NULL },
+  { "token.txt", "/stat", stats_command, NULL, NULL },
   { "token.txt", "/friend", friend_command, NULL, NULL },
   { "token.txt", "/ded", ded_command, NULL, NULL },
   { "token.txt", "/banner", banner_command, NULL, NULL },
+  { "token.txt", NULL, poll_callback, NULL, NULL },
   { "token.txt", NULL, potato_callback, potato_init, potato_deinit },
   { NULL }
 };
@@ -83,6 +86,7 @@ int processCommand(cJSON* json, const Command* rom){
 
   // parse argv
   // todo: do something about <br> tags and double spaces
+  // todo: do something about ", \\ and \" (or is this too hard)
   res->argc = 1;
   for(int i = 0; text[i]; i++){
     if(text[i] <= ' ')res->argc++;

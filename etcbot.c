@@ -146,3 +146,23 @@ void banner_command(ParsedCommand* cmd){
   cJSON_Delete(r);
   if(isBroken)respond(cmd, "чтото пошло нетак 😇");
 }
+
+void poll_callback(cJSON* json){
+  Buffer attach = Buffer$new();
+
+  if(E(cJSON_GetArrayItem(json, 0))->valueint != 4)return;
+  if(E(cJSON_GetArrayItem(json, 3))->valueint < 2000000000)return;
+  char* userid = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(json, 6)), "from"))));
+  if(atoi(userid) < 0)return;
+
+  cJSON* attachments = E(cJSON_GetArrayItem(json, 7));
+  if(!cJSON_GetObjectItem(attachments, "attach1_type"))return;
+  if(strcmp(E(cJSON_GetStringValue(cJSON_GetObjectItem(attachments, "attach1_type"))), "poll"))return;
+
+  char* pollid = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(attachments, "attach1"))));
+  Buffer$printf(&attach, "poll%s_%s", userid, pollid);
+  sendMessage("bottoken.txt", "2000000007", "attachment", Buffer$toString(&attach));
+
+  finally:
+  Buffer$delete(&attach);
+}
