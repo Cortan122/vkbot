@@ -1,7 +1,7 @@
 MAKEFLAGS += -j8
 LDFLAGS=-lcurl -lpthread -lm
 CFLAGS=-fdollars-in-identifiers -funsigned-char -Wall -Wextra -Wno-parentheses
-EXECUTABLES=print potatobot whoami concurrencytest send cronbot deadlinebot botbot
+EXECUTABLES=print potatobot send cronbot deadlinebot botbot
 # CC=gcc
 
 HEADERS=$(wildcard *.h) cJSON.h
