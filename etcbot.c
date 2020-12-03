@@ -3,6 +3,16 @@
 #include <string.h>
 #include <stdbool.h>
 
+#define PRIVATE_COMMAND(cmd) ({ \
+  if(cmd->user != MY_ID){ \
+    Buffer b = Buffer$new(); \
+    Buffer$printf(&b, "ты что захотел меня сломать¿\n\nкоманда '%s' если что приватная)) как ты вообще о ней знаешь?", cmd->text); \
+    respond(cmd, Buffer$toString(&b)); \
+    Buffer$delete(&b); \
+    return; \
+  } \
+})
+
 static void respond(ParsedCommand* cmd, char* str){
   sendMessage(cmd->token, cmd->str_chat,
     "message", str,
@@ -118,10 +128,7 @@ void friend_command(ParsedCommand* cmd){
 }
 
 void ded_command(ParsedCommand* cmd){
-  if(cmd->user != MY_ID){
-    respond(cmd, "ты что захотел меня сломать¿");
-    return;
-  }
+  PRIVATE_COMMAND(cmd);
   system("./deadlinebot"); // todo
 }
 
