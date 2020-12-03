@@ -1,7 +1,7 @@
 MAKEFLAGS += -j8
 LDFLAGS=-lcurl -lpthread -lm
 CFLAGS=-fdollars-in-identifiers -funsigned-char -Wall -Wextra -Wno-parentheses
-EXECUTABLES=print potatobot send cronbot deadlinebot botbot
+EXECUTABLES=print potatobot send cronbot deadlinebot botbot gapi
 # CC=gcc
 
 HEADERS=$(wildcard *.h) cJSON.h
@@ -17,6 +17,7 @@ all: $(EXECUTABLES) token.txt bottoken.txt apikey.txt pybottoken.txt
 $(EXECUTABLES): $(LIBS)
 $(LIBS): $(HEADERS)
 $(patsubst %,%.o,$(EXECUTABLES)): $(HEADERS)
+etcbot.o: $(HEADERS) # etcbot.o is neither a lib nor an exe
 botbot: potatobot.o etcbot.o
 # botbot: CC=gcc # tcc does not support __attribute__((weak))
 
