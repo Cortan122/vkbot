@@ -47,6 +47,7 @@ char* findToken(char* name);
 char* request(char* url);
 int printJson(cJSON* json);
 cJSON* apiRequest(char* endpoint, char* token, ...); //  __attribute__((sentinel))
+cJSON* apiRequest_argv(char* endpoint, char* token, char** argv);
 cJSON* postFile(char* url, char* name, char* path);
 char* uploadFile(char* path, char* type, char* destination, char* token);
 void longpoll(char* token, JSONCallback callback);

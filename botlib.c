@@ -199,23 +199,7 @@ int printJson(cJSON* json){
 
 static time_t lastApiRequestTime = 0;
 
-cJSON* apiRequest(char* endpoint, char* token, ...){
-  Buffer b = Buffer$new();
-  Buffer$printf(&b, "https://api.vk.com/method/%s?v=5.120&access_token=%s", endpoint, E(findToken(token)));
-
-  va_list ap;
-  va_start(ap, token);
-  while(1){
-    char* v1 = va_arg(ap, char*);
-    if(v1 == NULL)break; // yay у нас кончились все аргументы
-    char* v2 = E(va_arg(ap, char*));
-    Buffer$appendChar(&b, '&');
-    Buffer$appendString(&b, v1);
-    Buffer$appendChar(&b, '=');
-    curl_free(Buffer$appendString(&b, E(curl_easy_escape(NULL, v2, 0))));
-  }
-  va_end(ap);
-
+static cJSON* _apiRequest_impl(Buffer* b, char* endpoint){
   // todo: fixme
   #ifdef USE_RATE_LIMIT
     #ifdef LOG_REQUEST_TIMES
@@ -236,8 +220,8 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
     lastApiRequestTime = time(NULL);
   #endif
 
-  char* res = E(_request_impl(Buffer$toString(&b), 1));
-  Buffer$delete(&b);
+  char* res = E(_request_impl(Buffer$toString(b), 1));
+  Buffer$delete(b);
   cJSON* json = E(cJSON_Parse(res));
   free(res);
 
@@ -253,6 +237,52 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
   }
 
   finally:
+  return NULL;
+}
+
+#define APIREQUEST_INIT(b) Buffer$printf(&b, "https://api.vk.com/method/%s?v=5.120&access_token=%s", endpoint, E(findToken(token)));
+
+#define APIREQUEST_ADD(b, key, val) ({ \
+  Buffer$appendChar(&b, '&'); \
+  Buffer$appendString(&b, key); \
+  Buffer$appendChar(&b, '='); \
+  curl_free(Buffer$appendString(&b, E(curl_easy_escape(NULL, val, 0)))); \
+})
+
+cJSON* apiRequest_argv(char* endpoint, char* token, char** argv){
+  Buffer b = Buffer$new();
+  APIREQUEST_INIT(b);
+
+  while(1){
+    char* v1 = *(argv++);
+    if(v1 == NULL)break; // yay у нас кончились все аргументы
+    char* v2 = *(argv++);
+    APIREQUEST_ADD(b, v1, v2);
+  }
+
+  return E(_apiRequest_impl(&b, endpoint));
+  finally:
+  Buffer$delete(&b);
+  return NULL;
+}
+
+cJSON* apiRequest(char* endpoint, char* token, ...){
+  Buffer b = Buffer$new();
+  APIREQUEST_INIT(b);
+
+  va_list ap;
+  va_start(ap, token);
+  while(1){
+    char* v1 = va_arg(ap, char*);
+    if(v1 == NULL)break; // yay у нас кончились все аргументы
+    char* v2 = E(va_arg(ap, char*));
+    APIREQUEST_ADD(b, v1, v2);
+  }
+  va_end(ap);
+
+  return E(_apiRequest_impl(&b, endpoint));
+  finally:
+  Buffer$delete(&b);
   return NULL;
 }
 
