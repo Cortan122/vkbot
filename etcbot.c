@@ -6,7 +6,7 @@
 #define PRIVATE_COMMAND(cmd) ({ \
   if(cmd->user != MY_ID){ \
     Buffer b = Buffer$new(); \
-    Buffer$printf(&b, "ты что захотел меня сломать¿\n\nкоманда '%s' если что приватная)) как ты вообще о ней знаешь?", cmd->text); \
+    Buffer$printf(&b, "ты что захотел меня сломать¿\nкоманда '%s' если что приватная))\nкак ты вообще о ней знаешь?", cmd->text); \
     respond(cmd, Buffer$toString(&b)); \
     Buffer$delete(&b); \
     return; \
@@ -172,4 +172,23 @@ void poll_callback(cJSON* json){
 
   finally:
   Buffer$delete(&attach);
+}
+
+void at_command(ParsedCommand* cmd){
+  PRIVATE_COMMAND(cmd);
+  if(cmd->argc < 4){
+    respond(cmd, "нам надо хотябы 4 аргумента");
+    return;
+  }
+  bool isBroken = true;
+
+  Z(setenv("time", cmd->argv[1], 1));
+  Z(setenv("dest", cmd->argv[2], 1));
+  Z(setenv("msg", cmd->text + (cmd->argv[3] - cmd->argv[0]), 1));
+  Z(system("echo \"./send -t $dest \\\"$msg\\\"\" | at \"$time\""));
+  // todo!: THIS IS A ACTIUAL SECURITY FLAW ($msg cannot contain ", \ or $)
+
+  isBroken = false;
+  finally:
+  if(isBroken)respond(cmd, "чтото пошло нетак 😇");
 }
