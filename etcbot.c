@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 #define PRIVATE_COMMAND(cmd) ({ \
-  if(cmd->user != MY_ID){ \
+  if(cmd->user != MY_ID && cmd->user != 156402199 && cmd->user != 77662058){ \
     Buffer b = Buffer$new(); \
     Buffer$printf(&b, "ты что захотел меня сломать¿\nкоманда '%s' если что приватная))\nкак ты вообще о ней знаешь?", cmd->text); \
     respond(cmd, Buffer$toString(&b)); \
