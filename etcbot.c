@@ -174,6 +174,44 @@ void poll_callback(cJSON* json){
   Buffer$delete(&attach);
 }
 
+static char* parseDestination_number(char* src, char* res){
+  bool isChat = src[0]=='c' || src[0]=='C';
+  src += isChat;
+
+  if(STARTS_WITH(src, "с") || STARTS_WITH(src, "С")){
+    isChat = true;
+    src += strlen("с");
+  }
+
+  int val;
+  if(sscanf(src, "%d", &val) != 1)return NULL;
+
+  snprintf(res, 20, "%d", val);
+  if(strcmp(res, src))return NULL;
+  if(!isChat)return src;
+
+  snprintf(res, 20, "%d", val+2000000000);
+  return res;
+}
+
+static char* parseDestination(char* src, ParsedCommand* cmd, char* buf){
+  char* bufornull = NULL;
+  char* tmp = parseDestination_number(src, buf);
+  if(tmp)return tmp;
+
+  if(strcmp(src, "here") == 0)return cmd->str_chat;
+
+  cJSON* res = NULL;
+  res = E(apiRequest("users.get", cmd->token, "user_ids", src, NULL));
+  int id = E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(res, 0)), "id"))->valueint;
+  snprintf(buf, 20, "%d", id);
+  bufornull = buf;
+
+  finally:
+  cJSON_Delete(res);
+  return bufornull;
+}
+
 void at_command(ParsedCommand* cmd){
   PRIVATE_COMMAND(cmd);
   if(cmd->argc < 4){
@@ -182,8 +220,18 @@ void at_command(ParsedCommand* cmd){
   }
   bool isBroken = true;
 
+  char buf[20];
+  char* dest = parseDestination(cmd->argv[2], cmd, buf);
+  if(!dest){
+    Buffer b = Buffer$new();
+    Buffer$printf(&b, "кто такой вообще этот твой '%s'? я его незнаю", cmd->argv[2]);
+    respond(cmd, Buffer$toString(&b));
+    Buffer$delete(&b);
+    return;
+  }
+
   Z(setenv("time", cmd->argv[1], 1));
-  Z(setenv("dest", cmd->argv[2], 1));
+  Z(setenv("dest", dest, 1));
   Z(setenv("msg", cmd->text + (cmd->argv[3] - cmd->argv[0]), 1));
   Z(system("echo \"./send -t $dest \\\"\\$msg\\\"\" | at \"$time\""));
   // THIS IS (was) A ACTIUAL SECURITY FLAW ($msg cannot contain ", \ or $) (fixed?)
