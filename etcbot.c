@@ -185,8 +185,8 @@ void at_command(ParsedCommand* cmd){
   Z(setenv("time", cmd->argv[1], 1));
   Z(setenv("dest", cmd->argv[2], 1));
   Z(setenv("msg", cmd->text + (cmd->argv[3] - cmd->argv[0]), 1));
-  Z(system("echo \"./send -t $dest \\\"$msg\\\"\" | at \"$time\""));
-  // todo!: THIS IS A ACTIUAL SECURITY FLAW ($msg cannot contain ", \ or $)
+  Z(system("echo \"./send -t $dest \\\"\\$msg\\\"\" | at \"$time\""));
+  // THIS IS (was) A ACTIUAL SECURITY FLAW ($msg cannot contain ", \ or $) (fixed?)
 
   isBroken = false;
   finally:
