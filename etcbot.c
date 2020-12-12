@@ -129,7 +129,7 @@ void friend_command(ParsedCommand* cmd){
 
 void ded_command(ParsedCommand* cmd){
   PRIVATE_COMMAND(cmd);
-  system("./deadlinebot"); // todo
+  system("./deadlinebot &"); // todo
 }
 
 char* getBestPhotoUrl(cJSON* arr);
