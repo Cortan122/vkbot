@@ -25,6 +25,11 @@ void censorbot_init_command(ParsedCommand* cmd);
 void censorbot_command(ParsedCommand* cmd);
 
 const Command rom[] = {
+  // callback-и (их надо сначало):
+  { "token.txt", NULL, poll_callback, NULL, NULL },
+  { "token.txt", NULL, potato_callback, potato_init, potato_deinit },
+
+  // команды:
   { "token.txt", "/start", startbot_command, NULL, NULL },
   { "bottoken.txt", "/start", startbot_command, NULL, NULL },
   { "token.txt", "/python", pybot_command, NULL, NULL },
@@ -38,8 +43,6 @@ const Command rom[] = {
   { "token.txt", "/at", at_command, NULL, NULL },
   { "token.txt", "/censorbot_init", censorbot_init_command, NULL, NULL },
   { "token.txt", "/censorbot", censorbot_command, NULL, NULL },
-  { "token.txt", NULL, poll_callback, NULL, NULL },
-  { "token.txt", NULL, potato_callback, potato_init, potato_deinit },
   { NULL }
 };
 
