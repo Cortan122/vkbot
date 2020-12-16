@@ -1,4 +1,6 @@
 #include "botlib.h"
+#include "extralib.h"
+#include "etcbot.h"
 
 #include <string.h>
 #include <stdbool.h>
@@ -132,7 +134,6 @@ void ded_command(ParsedCommand* cmd){
   system("./deadlinebot &"); // todo
 }
 
-char* getBestPhotoUrl(cJSON* arr);
 void banner_command(ParsedCommand* cmd){
   cJSON* r = NULL;
   Buffer lastidb = Buffer$new();
@@ -174,44 +175,6 @@ void poll_callback(cJSON* json){
   Buffer$delete(&attach);
 }
 
-static char* parseDestination_number(char* src, char* res){
-  bool isChat = src[0]=='c' || src[0]=='C';
-  src += isChat;
-
-  if(STARTS_WITH(src, "с") || STARTS_WITH(src, "С")){
-    isChat = true;
-    src += strlen("с");
-  }
-
-  int val;
-  if(sscanf(src, "%d", &val) != 1)return NULL;
-
-  snprintf(res, 20, "%d", val);
-  if(strcmp(res, src))return NULL;
-  if(!isChat)return src;
-
-  snprintf(res, 20, "%d", val+2000000000);
-  return res;
-}
-
-static char* parseDestination(char* src, ParsedCommand* cmd, char* buf){
-  char* bufornull = NULL;
-  char* tmp = parseDestination_number(src, buf);
-  if(tmp)return tmp;
-
-  if(strcmp(src, "here") == 0)return cmd->str_chat;
-
-  cJSON* res = NULL;
-  res = E(apiRequest("users.get", cmd->token, "user_ids", src, NULL));
-  int id = E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(res, 0)), "id"))->valueint;
-  snprintf(buf, 20, "%d", id);
-  bufornull = buf;
-
-  finally:
-  cJSON_Delete(res);
-  return bufornull;
-}
-
 void at_command(ParsedCommand* cmd){
   PRIVATE_COMMAND(cmd);
   if(cmd->argc < 4){
@@ -221,7 +184,7 @@ void at_command(ParsedCommand* cmd){
   bool isBroken = true;
 
   char buf[20];
-  char* dest = parseDestination(cmd->argv[2], cmd, buf);
+  char* dest = parseDestination(cmd->argv[2], cmd->str_chat, cmd->token, buf);
   if(!dest){
     Buffer b = Buffer$new();
     Buffer$printf(&b, "кто такой вообще этот твой '%s'? я его незнаю", cmd->argv[2]);
@@ -270,4 +233,30 @@ void censorbot_command(ParsedCommand* cmd){
 
   finally:;
   free(script);
+}
+
+void rev_command(ParsedCommand* cmd){
+  if(cmd->argc > 1){
+    char* text = invertKeyboardLayout(cmd->text + (cmd->argv[1] - cmd->argv[0]));
+    respond(cmd, text);
+    free(text);
+    return;
+  }
+  cJSON* r = NULL;
+  Buffer lastidb = Buffer$new();
+  bool isBroken = true;
+
+  Buffer$printf(&lastidb, "%d", E(cJSON_GetArrayItem(cmd->event, 1))->valueint);
+  r = E(apiRequest("messages.getById", cmd->token, "message_ids", Buffer$toString(&lastidb), NULL));
+  cJSON* theMessage = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
+  cJSON* reply = E(cJSON_GetObjectItem(theMessage, "reply_message"));
+  char* text = E(invertKeyboardLayout(E(cJSON_GetStringValue(E(cJSON_GetObjectItem(reply, "text"))))));
+  respond(cmd, text);
+  free(text);
+
+  isBroken = false;
+  finally:
+  Buffer$delete(&lastidb);
+  cJSON_Delete(r);
+  if(isBroken)respond(cmd, "чтото пошло нетак 😇");
 }

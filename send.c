@@ -1,4 +1,5 @@
 #include "botlib.h"
+#include "extralib.h"
 #include <unistd.h>
 #include <malloc.h>
 #include <getopt.h>
@@ -33,23 +34,12 @@ char* message = NULL;
 bool slurp = false;
 FILE* slurpfile;
 
-char* parseDestination(char* src){
-  bool isChat = src[0]=='c' || src[0]=='C';
-  src += isChat;
-
-  int val;
-  if(sscanf(src, "%d", &val) != 1)goto fail;
-
+char* parseDestination_cli(char* src){
   static char res[20];
-  snprintf(res, sizeof(res), "%d", val);
-  if(strcmp(res, src))goto fail;
-  if(!isChat)return src;
+  return E(parseDestination(src, NULL, NULL, res));
 
-  snprintf(res, sizeof(res), "%d", val+2000000000);
-  return res;
-
-  fail:
-  fprintf(stderr, "invalid destination '%s'\n", src-isChat);
+  finally:
+  fprintf(stderr, "invalid destination '%s'\n", src);
   fflush(stderr);
   return NULL;
 }
@@ -66,7 +56,7 @@ void parseArgv(int argc, char** argv){
       case '?':
         exit(1);
       case 't':
-        destination = parseDestination(optarg);
+        destination = parseDestination_cli(optarg);
         break;
       case 'T':
         token = optarg;

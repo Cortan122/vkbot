@@ -1,4 +1,4 @@
-#include "botlib.h"
+#include "etcbot.h"
 
 #include <malloc.h>
 #include <string.h>
@@ -8,21 +8,6 @@
 #include <time.h>
 #include <sys/time.h>
 #include <locale.h>
-
-void potato_callback(cJSON* json);
-void poll_callback(cJSON* json);
-void potato_init();
-void potato_deinit();
-void startbot_command(ParsedCommand* cmd);
-void pybot_command(ParsedCommand* cmd);
-void read_command(ParsedCommand* cmd);
-void stats_command(ParsedCommand* cmd);
-void friend_command(ParsedCommand* cmd);
-void ded_command(ParsedCommand* cmd);
-void banner_command(ParsedCommand* cmd);
-void at_command(ParsedCommand* cmd);
-void censorbot_init_command(ParsedCommand* cmd);
-void censorbot_command(ParsedCommand* cmd);
 
 const Command rom[] = {
   { "token.txt", "/start", startbot_command, NULL, NULL },
@@ -38,6 +23,8 @@ const Command rom[] = {
   { "token.txt", "/at", at_command, NULL, NULL },
   { "token.txt", "/censorbot_init", censorbot_init_command, NULL, NULL },
   { "token.txt", "/censorbot", censorbot_command, NULL, NULL },
+  { "token.txt", "/rev", rev_command, NULL, NULL },
+  { "token.txt", "/рев", rev_command, NULL, NULL },
   { "token.txt", NULL, poll_callback, NULL, NULL },
   { "token.txt", NULL, potato_callback, potato_init, potato_deinit }, // potatobot должен быть в конце тк он шакалит json (как?)
   { NULL }

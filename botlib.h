@@ -1,3 +1,5 @@
+#pragma once
+
 #include "cJSON.h"
 #include "Buffer.h"
 #include <signal.h>
@@ -11,33 +13,6 @@
 
 typedef void (JSONCallback)(cJSON*);
 typedef void (JSONCallbackEx)(cJSON*, void*);
-typedef void (Action)();
-
-typedef struct Command {
-  char* token;
-  char* cmd;
-  void* callback;
-  Action* init;
-  Action* deinit;
-} Command;
-
-typedef struct ParsedCommand {
-  char* token;
-  char* text;
-  int chat;
-  int user;
-  int replyId; // 0 by default
-  char* str_chat;
-  char* str_user;
-  char* str_replyId;
-  int argc;
-  char** argv;
-  cJSON* event;
-  // todo?: char** rest; (rest[i] = text + argv[i] - argv[0])
-  // const Command* rom;
-} ParsedCommand;
-
-typedef void (CommandCallback)(ParsedCommand*);
 
 char* getTimeString();
 void waitForInternet();

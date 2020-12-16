@@ -1,5 +1,6 @@
 #include "botlib.h"
 #include "LinkedDict.h"
+#include "extralib.h"
 
 #define DISABLE_EDITS
 // #define DISABLE_FORMAT
@@ -175,26 +176,6 @@ static int formatCopyrightString(Buffer* b, int user, int chat, time_t date){
   return 0;
   finally:
   return 1;
-}
-
-char* getBestPhotoUrl(cJSON* arr){
-  char* rom = "smxyzw";
-  char* res = NULL;
-  int resIndex = -1;
-  cJSON* e;
-  cJSON_ArrayForEach(e, arr){
-    char type = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(e, "type"))))[0];
-    int i = 0;
-    while(rom[i] && rom[i] != type)i++;
-    if(!rom[i])i = -1;
-    if(resIndex < i){
-      resIndex = i;
-      res = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(e, "url"))));
-    }
-  }
-  return res;
-  finally:
-  return NULL;
 }
 
 static void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
@@ -553,6 +534,7 @@ void potato_deinit(){
   LinkedDict$delete(chatDict);
 }
 
+#ifdef __GNUC__
 __attribute__((weak)) int main(){
   mallopt(M_CHECK_ACTION, 0b001);
 
@@ -565,3 +547,4 @@ __attribute__((weak)) int main(){
   fflush(stderr);
   return 0;
 }
+#endif
