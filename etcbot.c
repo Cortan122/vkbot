@@ -236,27 +236,49 @@ void censorbot_command(ParsedCommand* cmd){
 }
 
 void rev_command(ParsedCommand* cmd){
+  cJSON* r = NULL;
+  char* text = NULL;
+  Buffer message_id = Buffer$new();
+  bool isBroken = true;
+  Buffer$printf(&message_id, "%d", E(cJSON_GetArrayItem(cmd->event, 1))->valueint);
+
   if(cmd->argc > 1){
     char* text = invertKeyboardLayout(cmd->text + (cmd->argv[1] - cmd->argv[0]));
-    respond(cmd, text);
+    if(cmd->user == MY_ID){
+      cJSON_Delete(E(apiRequest("messages.edit", "token.txt",
+        "peer_id", cmd->str_chat,
+        "message_id", Buffer$toString(&message_id),
+        "message", text,
+      NULL)));
+    }else{
+      respond(cmd, text);
+    }
     free(text);
-    return;
+    goto end;
   }
-  cJSON* r = NULL;
-  Buffer lastidb = Buffer$new();
-  bool isBroken = true;
 
-  Buffer$printf(&lastidb, "%d", E(cJSON_GetArrayItem(cmd->event, 1))->valueint);
-  r = E(apiRequest("messages.getById", cmd->token, "message_ids", Buffer$toString(&lastidb), NULL));
+  r = E(apiRequest("messages.getById", cmd->token, "message_ids", Buffer$toString(&message_id), NULL));
   cJSON* theMessage = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
-  cJSON* reply = E(cJSON_GetObjectItem(theMessage, "reply_message"));
-  char* text = E(invertKeyboardLayout(E(cJSON_GetStringValue(E(cJSON_GetObjectItem(reply, "text"))))));
+  cJSON* reply = cJSON_GetObjectItem(theMessage, "reply_message");
+  cJSON* forward = cJSON_GetObjectItem(theMessage, "fwd_messages");
+  if(reply){
+    text = E(invertKeyboardLayout(E(cJSON_GetStringValue(E(cJSON_GetObjectItem(reply, "text"))))));
+  }else if(forward){
+    Buffer$reset(&message_id);
+    cJSON* e;
+    cJSON_ArrayForEach(e, forward){
+      Buffer$appendString(&message_id, E(cJSON_GetStringValue(E(cJSON_GetObjectItem(e, "text")))));
+      Buffer$appendString(&message_id, "\n\n");
+    }
+    text = E(invertKeyboardLayout(Buffer$toString(&message_id)));
+  }
   respond(cmd, text);
-  free(text);
 
+  end:;
   isBroken = false;
   finally:
-  Buffer$delete(&lastidb);
+  free(text);
+  Buffer$delete(&message_id);
   cJSON_Delete(r);
   if(isBroken)respond(cmd, "чтото пошло нетак 😇");
 }
