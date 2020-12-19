@@ -17,14 +17,18 @@ const Command rom[] = {
   { "token.txt", "/read", read_command, NULL, NULL },
   { "token.txt", "/stats", stats_command, NULL, NULL },
   { "token.txt", "/stat", stats_command, NULL, NULL },
+  { "token.txt", "/стат", stats_command, NULL, NULL },
   { "token.txt", "/friend", friend_command, NULL, NULL },
   { "token.txt", "/ded", ded_command, NULL, NULL },
+  { "token.txt", "/дед", ded_command, NULL, NULL },
   { "token.txt", "/banner", banner_command, NULL, NULL },
   { "token.txt", "/at", at_command, NULL, NULL },
   { "token.txt", "/censorbot_init", censorbot_init_command, NULL, NULL },
   { "token.txt", "/censorbot", censorbot_command, NULL, NULL },
   { "token.txt", "/rev", rev_command, NULL, NULL },
   { "token.txt", "/рев", rev_command, NULL, NULL },
+  { "token.txt", "/кум", rev_command, NULL, NULL },
+  { "token.txt", ".кум", rev_command, NULL, NULL },
   { "token.txt", NULL, poll_callback, NULL, NULL },
   { "token.txt", NULL, potato_callback, potato_init, potato_deinit }, // potatobot должен быть в конце тк он шакалит json (как?)
   { NULL }
