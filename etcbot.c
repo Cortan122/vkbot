@@ -159,7 +159,8 @@ void poll_callback(cJSON* json){
   Buffer attach = Buffer$new();
 
   if(E(cJSON_GetArrayItem(json, 0))->valueint != 4)return;
-  if(E(cJSON_GetArrayItem(json, 3))->valueint < 2000000000)return;
+  int chatId = E(cJSON_GetArrayItem(json, 3))->valueint;
+  if(chatId < 2000000000)return;
   char* userid = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(json, 6)), "from"))));
   if(atoi(userid) < 0)return;
 
@@ -169,7 +170,10 @@ void poll_callback(cJSON* json){
 
   char* pollid = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(attachments, "attach1"))));
   Buffer$printf(&attach, "poll%s_%s", userid, pollid);
-  sendMessage("bottoken.txt", "2000000007", "attachment", Buffer$toString(&attach));
+  sendMessage("bottoken.txt", "2000000007",
+    "attachment", Buffer$toString(&attach),
+    "message", chatId == 2000000002 ? "ВАЖНО" : ""
+  );
 
   finally:
   Buffer$delete(&attach);
