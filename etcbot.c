@@ -253,6 +253,7 @@ void rev_command(ParsedCommand* cmd){
         "peer_id", cmd->str_chat,
         "message_id", Buffer$toString(&message_id),
         "message", text,
+        "keep_forward_messages", 1,
       NULL)));
     }else{
       respond(cmd, text);
@@ -267,7 +268,7 @@ void rev_command(ParsedCommand* cmd){
   cJSON* forward = cJSON_GetObjectItem(theMessage, "fwd_messages");
   if(reply){
     text = E(invertKeyboardLayout(E(cJSON_GetStringValue(E(cJSON_GetObjectItem(reply, "text"))))));
-  }else if(forward){
+  }else if(forward && cJSON_GetArraySize(forward)){
     Buffer$reset(&message_id);
     cJSON* e;
     cJSON_ArrayForEach(e, forward){
@@ -275,6 +276,22 @@ void rev_command(ParsedCommand* cmd){
       Buffer$appendString(&message_id, "\n\n");
     }
     text = E(invertKeyboardLayout(Buffer$toString(&message_id)));
+  }else{
+    cJSON_Delete(r); r = NULL;
+    r = E(apiRequest("messages.getHistory", cmd->token, "peer_id", cmd->str_chat, NULL));
+    cJSON* arr = E(cJSON_GetObjectItem(r, "items"));
+    cJSON* e;
+    bool isReady = false;
+    cJSON_ArrayForEach(e, arr){
+      char* text2 = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(e, "text"))));
+      if(strcmp(text2, cmd->text) == 0){
+        isReady = true;
+      }else if(isReady){
+        text = E(invertKeyboardLayout(text2));
+        break;
+      }
+    }
+    if(!isReady)goto finally;
   }
   respond(cmd, text);
 
