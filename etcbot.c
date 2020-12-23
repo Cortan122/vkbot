@@ -253,7 +253,7 @@ void rev_command(ParsedCommand* cmd){
         "peer_id", cmd->str_chat,
         "message_id", Buffer$toString(&message_id),
         "message", text,
-        "keep_forward_messages", 1,
+        "keep_forward_messages", "1",
       NULL)));
     }else{
       respond(cmd, text);
