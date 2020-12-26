@@ -16,6 +16,7 @@
 })
 
 static void respond(ParsedCommand* cmd, char* str){
+  if(str == NULL || *str == '\0')str = "кажется получился пустой ответ 😇";
   sendMessage(cmd->token, cmd->str_chat,
     "message", str,
     "reply_to", cmd->replyId ? cmd->str_replyId : ""
