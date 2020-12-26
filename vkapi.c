@@ -9,7 +9,7 @@ int main(int argc, char** argv){
   }
 
   char* endpoint = argv[1];
-  char* token = "token.txt"; // todo: option
+  char* token = "token.txt";
   int returnCode = 1;
 
   if(strcmp(endpoint, "-T") == 0){

@@ -25,7 +25,7 @@ int proccesLine(cJSON* line, Buffer* b){
   char* str = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(line, 0))));
   if(str[0] == '#'){
     if(STARTS_WITH(str, "#coronaplot")){
-      char* plot = E(find("pybot/corona.plot", "")); // todo: fix hardcoded path
+      char* plot = E(find("twixtractor/corona.plot", "")); // todo: fix hardcoded path
       Z(setenv("plot", plot, 1));
       Z(system("\"$plot\""));
       free(plot);
