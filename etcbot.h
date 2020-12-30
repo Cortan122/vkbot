@@ -38,6 +38,7 @@ void read_command(ParsedCommand* cmd);
 void stats_command(ParsedCommand* cmd);
 void friend_command(ParsedCommand* cmd);
 void ded_command(ParsedCommand* cmd);
+void email_command(ParsedCommand* cmd);
 void banner_command(ParsedCommand* cmd);
 void at_command(ParsedCommand* cmd);
 void censorbot_init_command(ParsedCommand* cmd);

@@ -135,6 +135,11 @@ void ded_command(ParsedCommand* cmd){
   system("./deadlinebot &"); // todo
 }
 
+void email_command(ParsedCommand* cmd){
+  PRIVATE_COMMAND(cmd);
+  system("../twixtractor/rssupdate.sh &"); // todo
+}
+
 void banner_command(ParsedCommand* cmd){
   cJSON* r = NULL;
   Buffer lastidb = Buffer$new();
