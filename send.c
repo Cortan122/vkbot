@@ -6,14 +6,20 @@
 #include <stdbool.h>
 #include <string.h>
 
-#define CR_COMMAND(cmd, type) \
+#define CR_COMMAND_BASE(cmd, cb) \
   else if(STARTS_WITH(line, cmd)){ \
-    if(attachment.len)Buffer$appendChar(&attachment, ','); \
     char* path = line + strlen(cmd); \
     int len = strlen(path); \
     while(len && path[len-1] < ' ')path[--len] = '\0'; \
-    free(Buffer$appendString(&attachment, E(uploadFile(path, type, destination, token)))); \
+    cb; \
   }
+
+#define CR_COMMAND_ATTACHMENT(cmd, free, cb) CR_COMMAND_BASE(cmd, { \
+  if(attachment.len)Buffer$appendChar(&attachment, ','); \
+  free(Buffer$appendString(&attachment, E(cb))); \
+})
+
+#define CR_COMMAND(cmd, type) CR_COMMAND_ATTACHMENT(cmd, free, uploadFile(path, type, destination, token))
 
 struct option longOptionRom[] = {
   {"to", required_argument, 0, 't'},
@@ -100,6 +106,14 @@ void parseArgv(int argc, char** argv){
           "  Для пользователя: id пользователя.\n"
           "  Для групповой беседы: 2000000000 + id беседы.\n"
           "  Для сообщества: -id сообщества.\n"
+          "\n"
+          "slurp mode commands:\n"
+          "  \x1b[33m\\r\x1b[0mfile <file>\n"
+          "  \x1b[33m\\r\x1b[0mdoc <file>\n"
+          "  \x1b[33m\\r\x1b[0mphoto <file.png>\n"
+          "  \x1b[33m\\r\x1b[0mgraffiti <file.png>\n"
+          "  \x1b[33m\\r\x1b[0mattachment <type><uid>_<id>\n"
+          "  \x1b[33m\\r\x1b[0mto <peer_id>\n"
         );
         exit(0);
       default:
@@ -137,6 +151,8 @@ bool slurpMessage(){
     CR_COMMAND("\rdoc ", "doc")
     CR_COMMAND("\rphoto ", "photo")
     CR_COMMAND("\rgraffiti ", "graffiti")
+    CR_COMMAND_ATTACHMENT("\rattachment ",, path)
+    CR_COMMAND_BASE("\rto ", destination = parseDestination_cli(path))
     else Buffer$appendString(&message, line);
   }
 
