@@ -182,10 +182,12 @@ int pinLastMessage(char* chat){
   return 1;
 }
 
-int main(){
+int main(int argc, char** argv){
   if(!isLastMessageBotted(SHLEX, "token.txt")){
     char* res = E(getMessage());
     printf("%s", res);
+    if(argc == 2 && strcmp(argv[1], "--preview") == 0)return 0;
+
     sendMessage("bottoken.txt", SHLEX, "message", res, "attachment", attachment ?: "");
     sendMessage("bottoken.txt", "190499058", "message", res);
     free(res);
