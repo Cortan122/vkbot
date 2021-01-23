@@ -299,6 +299,7 @@ void rev_command(ParsedCommand* cmd){
     }
     if(!isReady)goto finally;
   }
+  if(STARTS_WITH(text, "/rev") || STARTS_WITH(text, ".кум"))text[0] = '_';
   respond(cmd, text);
 
   end:;
