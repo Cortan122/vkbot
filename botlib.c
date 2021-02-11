@@ -132,9 +132,12 @@ static char* _request_impl(char* url, int post, ...){
     curl_mime* form = E(curl_mime_init(curl));
     curl_mimepart* field = E(curl_mime_addpart(form));
     Z(curl_mime_name(field, name));
+
+    // todo: read url
     if(access(path, R_OK))perror(path);
     Z(curl_mime_filedata(field, path));
     Z(curl_easy_setopt(curl, CURLOPT_MIMEPOST, form));
+    // todo: curl_mime_free(form); надо делать после того как закончился запрос
   }
   Z(curl_easy_setopt(curl, CURLOPT_URL, url));
   Z(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteHook));
@@ -161,6 +164,7 @@ static char* _request_impl(char* url, int post, ...){
     );
   #endif
 
+  // todo: return Buffer
   return Buffer$toString(&b);
   finally:
   curl_easy_cleanup(curl);

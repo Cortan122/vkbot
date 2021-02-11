@@ -10,9 +10,36 @@
 #include <stdlib.h>
 #include <stdarg.h>
 
+// форматы времени:
+// "{n}" -> "12д 5ч"
+// "{N}" -> "12д"
+// "{d}" -> "12 дней 5 часов"
+// "{D}" -> "12 дней"
+// "{M}" -> "13" тут зачемто ceil и мне страшно чтото менять
+
 #define SHLEX "2000000001"
 
 char* attachment = NULL;
+
+char* russianPluralForm(int number, char* singular, char* dual, char* plural){
+  if(number < 0)number *= -1;
+  number %= 100;
+
+  if(number / 10 == 1)return plural;
+  number %= 10;
+
+  if(number == 0 || number > 4)return plural;
+  if(number == 1)return singular;
+  return dual;
+}
+
+char* russianPluralDays(int days){
+  return russianPluralForm(days, "день", "дня", "дней");
+}
+
+char* russianPluralHours(int hours){
+  return russianPluralForm(hours, "час", "часа", "часов");
+}
 
 int proccesLine(cJSON* line, Buffer* b){
   int prevlen = b->len;
@@ -79,14 +106,21 @@ int proccesLine(cJSON* line, Buffer* b){
 
   for(int i = 0; str[i]; i++){
     if(str[i] == '{' && str[i+1] && str[i+2] == '}'){
-      if(str[i+1] == 'M'){
+      char c = str[i+1];
+      if(c == 'M'){
         Buffer$printf(b, "%d", (int)ceil(days));
-      }else if((str[i+1] == 'n' || str[i+1] == 'N') && whole == 0){
+      }else if((c == 'n' || c == 'N') && whole == 0){
         Buffer$printf(b, "%dч", part);
-      }else if(str[i+1] == 'N'){
+      }else if(c == 'N'){
         Buffer$printf(b, "%dд", whole);
-      }else if(str[i+1] == 'n'){
+      }else if(c == 'n'){
         Buffer$printf(b, "%dд %dч", whole, part);
+      }else if((c == 'd' || c == 'D') && whole == 0){
+        Buffer$printf(b, "%d %s", part, russianPluralHours(part));
+      }else if(c == 'D'){
+        Buffer$printf(b, "%d %s", whole, russianPluralDays(whole));
+      }else if(c == 'd'){
+        Buffer$printf(b, "%d %s %d %s", whole, russianPluralDays(whole), part, russianPluralHours(part));
       }else continue;
       i += 2;
     }else Buffer$appendChar(b, str[i]);
@@ -99,14 +133,44 @@ int proccesLine(cJSON* line, Buffer* b){
   return 1;
 }
 
+int compareDeadlines(const void* a, const void* b){
+  char* str1 = cJSON_GetStringValue(cJSON_GetArrayItem(*(cJSON**)a, 1));
+  char* str2 = cJSON_GetStringValue(cJSON_GetArrayItem(*(cJSON**)b, 1));
+  return strcmp(str1, str2);
+}
+
+void sortAdjacentDeadlines(cJSON** arr){
+  int startIndex = -1;
+
+  for(int i = 0; arr[i]; i++){
+    int size = cJSON_GetArraySize(arr[i]);
+    if(size == 0){
+      if(startIndex != -1){
+        qsort(arr+startIndex, i-startIndex, sizeof(cJSON*), compareDeadlines);
+      }
+      startIndex = i+1;
+    }else if(size == 1 && startIndex != -1){
+      startIndex = -1;
+    }else if(size == 2 && startIndex != -1){
+      char* timestr = cJSON_GetStringValue(cJSON_GetArrayItem(arr[i], 1));
+      if(timestr == NULL || timestr[0] == '#')startIndex = -1;
+    }
+  }
+}
+
 char* getMessage(){
   Buffer b = Buffer$new();
   cJSON* table = NULL;
   table = E(gapiRequest("1HTom_rLaBVQFYkWGJWEM8v1HQSZj5pHkrUDbpYVtH1g", "Лист1!A2:B", NULL));
   printJson(table);
 
+  cJSON** contiguousArray = calloc(cJSON_GetArraySize(table)+1, sizeof(cJSON*));
   cJSON* line;
-  cJSON_ArrayForEach(line, table)proccesLine(line, &b);
+  int i = 0;
+  cJSON_ArrayForEach(line, table)contiguousArray[i++] = line;
+  sortAdjacentDeadlines(contiguousArray);
+  for(cJSON** arr = contiguousArray; *arr; arr++)proccesLine(*arr, &b);
+  free(contiguousArray);
 
   cJSON_Delete(table);
   return Buffer$toString(&b);
@@ -186,7 +250,10 @@ int main(int argc, char** argv){
   if(!isLastMessageBotted(SHLEX, "token.txt")){
     char* res = E(getMessage());
     printf("%s", res);
-    if(argc == 2 && strcmp(argv[1], "--preview") == 0)return 0;
+    if(argc == 2 && strcmp(argv[1], "--preview") == 0){
+      free(res);
+      return 0;
+    }
 
     sendMessage("bottoken.txt", SHLEX, "message", res, "attachment", attachment ?: "");
     sendMessage("bottoken.txt", "190499058", "message", res);
