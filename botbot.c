@@ -29,6 +29,9 @@ const Command rom[] = {
   { "token.txt", "/rev", rev_command, NULL, NULL },
   { "token.txt", "/рев", rev_command, NULL, NULL },
   { "token.txt", "/кум", rev_command, NULL, NULL },
+  { "token.txt", "\\rev", rev_command, NULL, NULL },
+  { "token.txt", "\\рев", rev_command, NULL, NULL },
+  { "token.txt", "\\кум", rev_command, NULL, NULL },
   { "token.txt", ".кум", rev_command, NULL, NULL },
   { "token.txt", NULL, poll_callback, NULL, NULL },
   { "token.txt", NULL, potato_callback, potato_init, potato_deinit }, // potatobot должен быть в конце тк он шакалит json (как?)

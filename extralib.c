@@ -238,6 +238,18 @@ char* invertKeyboardLayout(char* text){
     Z(utf8ParseChar(*text, layout_callback, &res));
   }
 
+  // тут мы заменяем ',' в конце строки не на 'б' а на '?'
+  // но это невсегда правильно
+  // потомучто тогда "краб" станет "кра?"
+  // можно тут думать о команде '.кум' vs '/rev'
+  // посмотрим как часто крабы встречаются на практике
+  text--;
+  if(res.len >= 2 && *text == ',' && strcmp(res.body+res.len-2, "б") == 0){
+    res.body[res.len-2] = '?';
+    res.body[res.len-1] = '\0';
+    res.len--;
+  }
+
   return Buffer$toString(&res);
   finally:
   Buffer$delete(&res);
