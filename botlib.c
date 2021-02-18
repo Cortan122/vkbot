@@ -85,6 +85,18 @@ static int curlWriteHook(void* ptr, int size, int nmemb, Buffer *b){
   return size*nmemb;
 }
 
+static char* guessAppropriateFilename(char* data){
+  // todo: look at mimetype? use file(1)¿¿ libmagic
+  // todo?: get real mimetype from curl
+  // source: https://en.wikipedia.org/wiki/List_of_file_signatures
+  if(STARTS_WITH(data, "\x89PNG\x0D\x0A\x1A\x0A"))return "image.png";
+  if(STARTS_WITH(data, "\xFF\xD8\xFF"))return "photo.jpg";
+  if(STARTS_WITH(data, "GIF8"))return "animation.gif";
+  if(STARTS_WITH(data, "%PDF-"))return "document.pdf";
+  if(STARTS_WITH(data, "PK\x03\x04"))return "archive.zip.txt";
+  return "unknown file.txt";
+}
+
 char* getTimeString(){
   time_t rawtime = time(NULL);
   struct tm* timeinfo = localtime(&rawtime);
@@ -103,13 +115,14 @@ void waitForInternet(){
   fflush(stderr);
 }
 
-static char* _request_impl(char* url, int post, ...){
+static Buffer _request_impl(char* url, int post, ...){
   #ifdef LOG_REQUEST_TIMES
     struct timeval start;
     gettimeofday(&start, NULL);
   #endif
 
   CURL* curl = NULL;
+  curl_mime* form = NULL;
   curl = E(curl_easy_init());
 
   Buffer b = Buffer$new();
@@ -129,15 +142,23 @@ static char* _request_impl(char* url, int post, ...){
     char* path = E(va_arg(ap, char*));
     va_end(ap);
 
-    curl_mime* form = E(curl_mime_init(curl));
+    form = E(curl_mime_init(curl));
     curl_mimepart* field = E(curl_mime_addpart(form));
     Z(curl_mime_name(field, name));
 
-    // todo: read url
-    if(access(path, R_OK))perror(path);
-    Z(curl_mime_filedata(field, path));
+    if(access(path, R_OK)){
+      if(!STARTS_WITH(path, "https://") && !STARTS_WITH(path, "http://")){
+        perror(path);
+        goto finally;
+      }
+      Buffer urlres = _request_impl(path, 0);
+      Z(urlres.len < 0);
+      Z(curl_mime_data(field, urlres.body, urlres.len));
+      Z(curl_mime_filename(field, guessAppropriateFilename(urlres.body)));
+    }else{
+      Z(curl_mime_filedata(field, path));
+    }
     Z(curl_easy_setopt(curl, CURLOPT_MIMEPOST, form));
-    // todo: curl_mime_free(form); надо делать после того как закончился запрос
   }
   Z(curl_easy_setopt(curl, CURLOPT_URL, url));
   Z(curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curlWriteHook));
@@ -154,6 +175,7 @@ static char* _request_impl(char* url, int post, ...){
   if(retcode)THROW("curl_easy_perform(curl)", "%s", curl_easy_strerror(retcode));
 
   curl_easy_cleanup(curl);
+  curl_mime_free(form);
 
   #ifdef LOG_REQUEST_TIMES
     struct timeval stop;
@@ -164,16 +186,18 @@ static char* _request_impl(char* url, int post, ...){
     );
   #endif
 
-  // todo: return Buffer
-  return Buffer$toString(&b);
+  Buffer$toString(&b);
+  return b;
   finally:
   curl_easy_cleanup(curl);
+  curl_mime_free(form);
   Buffer$delete(&b);
-  return NULL;
+  b.len = -1;
+  return b;
 }
 
 char* request(char* url){
-  return _request_impl(url, 0);
+  return _request_impl(url, 0).body;
 }
 
 int printJson(cJSON* json){
@@ -224,7 +248,7 @@ static cJSON* _apiRequest_impl(Buffer* b, char* endpoint){
     lastApiRequestTime = time(NULL);
   #endif
 
-  char* res = E(_request_impl(Buffer$toString(b), 1));
+  char* res = E(_request_impl(Buffer$toString(b), 1).body);
   Buffer$delete(b);
   cJSON* json = E(cJSON_Parse(res));
   free(res);
@@ -292,7 +316,7 @@ cJSON* apiRequest(char* endpoint, char* token, ...){
 
 cJSON* postFile(char* url, char* name, char* path){
   cJSON* json = NULL;
-  char* res = E(_request_impl(url, 2, name, path));
+  char* res = E(_request_impl(url, 2, name, path).body);
   json = E(cJSON_Parse(res));
   free(res);
 
