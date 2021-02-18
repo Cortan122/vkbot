@@ -214,37 +214,6 @@ void at_command(ParsedCommand* cmd){
   if(isBroken)respond(cmd, "чтото пошло нетак 😇");
 }
 
-void censorbot_init_command(ParsedCommand* cmd){
-  // todo: fail gracefully
-  if(cmd->user != MY_ID)return;
-  if(cmd->chat != 2000000026)return;
-
-  char* script = NULL;
-  script = E(find("shady/draw_vk_msg", ".sh"));
-
-  Z(setenv("script", script, 1));
-  Z(setenv("id", cmd->argv[1], 1));
-  Z(system("\"$script\" \"$id\" --init"));
-
-  finally:;
-  free(script);
-}
-
-void censorbot_command(ParsedCommand* cmd){
-  // todo: fail gracefully
-  if(cmd->chat != 2000000026)return;
-
-  char* script = NULL;
-  script = E(find("shady/draw_vk_msg", ".sh"));
-
-  Z(setenv("script", script, 1));
-  Z(setenv("word", cmd->argv[1], 1));
-  Z(system("\"$script\" auto \"$word\" &"));
-
-  finally:;
-  free(script);
-}
-
 void rev_command(ParsedCommand* cmd){
   cJSON* r = NULL;
   char* text = NULL;

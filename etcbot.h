@@ -41,6 +41,4 @@ void ded_command(ParsedCommand* cmd);
 void email_command(ParsedCommand* cmd);
 void banner_command(ParsedCommand* cmd);
 void at_command(ParsedCommand* cmd);
-void censorbot_init_command(ParsedCommand* cmd);
-void censorbot_command(ParsedCommand* cmd);
 void rev_command(ParsedCommand* cmd);

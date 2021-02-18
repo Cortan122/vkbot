@@ -24,8 +24,6 @@ const Command rom[] = {
   { "token.txt", "/email", email_command, NULL, NULL },
   { "token.txt", "/banner", banner_command, NULL, NULL },
   { "token.txt", "/at", at_command, NULL, NULL },
-  { "token.txt", "/censorbot_init", censorbot_init_command, NULL, NULL },
-  { "token.txt", "/censorbot", censorbot_command, NULL, NULL },
   { "token.txt", "/rev", rev_command, NULL, NULL },
   { "token.txt", "/рев", rev_command, NULL, NULL },
   { "token.txt", "/кум", rev_command, NULL, NULL },
