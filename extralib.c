@@ -243,6 +243,7 @@ char* invertKeyboardLayout(char* text){
   // потомучто тогда "краб" станет "кра?"
   // можно тут думать о команде '.кум' vs '/rev'
   // посмотрим как часто крабы встречаются на практике
+  Buffer$toString(&res);
   text--;
   if(res.len >= 2 && *text == ',' && strcmp(res.body+res.len-2, "б") == 0){
     res.body[res.len-2] = '?';
