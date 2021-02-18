@@ -260,7 +260,7 @@ static char* parseDestination_number(char* src, char* res){
   bool isChat = src[0]=='c' || src[0]=='C';
   src += isChat;
 
-  if(STARTS_WITH(src, "с") || STARTS_WITH(src, "С")){
+  if(startsWith(src, "с") || startsWith(src, "С")){
     isChat = true;
     src += strlen("с");
   }

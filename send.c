@@ -7,7 +7,7 @@
 #include <string.h>
 
 #define CR_COMMAND_BASE(cmd, cb) \
-  else if(STARTS_WITH(line, cmd)){ \
+  else if(startsWith(line, cmd)){ \
     char* path = line + strlen(cmd); \
     int len = strlen(path); \
     while(len && path[len-1] < ' ')path[--len] = '\0'; \

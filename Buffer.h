@@ -29,7 +29,7 @@
 #define _NUM(x) #x
 #define NUM(x) _NUM(x)
 
-#define STARTS_WITH(haystack, needle) (strlen(haystack) >= strlen(needle) && strncmp(haystack, needle, strlen(needle)) == 0)
+int startsWith(char* string, char* prefix);
 
 typedef struct Buffer {
   char* body;

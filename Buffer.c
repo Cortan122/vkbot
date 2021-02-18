@@ -5,6 +5,14 @@
 #include <string.h>
 #include <stdarg.h>
 
+int startsWith(char* string, char* prefix){
+  // return strncmp(prefix, string, strlen(prefix)) == 0;
+  while(*prefix){
+    if(*prefix++ != *string++)return 0;
+  }
+  return 1;
+}
+
 Buffer Buffer$new(){
   Buffer r;
   r.cap = 0;

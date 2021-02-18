@@ -77,9 +77,9 @@ int proccesLine(cJSON* line, Buffer* b){
     Z(startTmuxJob(path, getBasename(name), restart));
   }else if(strcmp(cron, "stop") == 0){
     Z(startTmuxJob(path, getBasename(name), 2));
-  }else if(STARTS_WITH(cron, "start ")){
+  }else if(startsWith(cron, "start ")){
     Z(startTmuxJob(path, cron+strlen("start "), restart));
-  }else if(STARTS_WITH(cron, "stop ")){
+  }else if(startsWith(cron, "stop ")){
     Z(startTmuxJob(path, cron+strlen("stop "), 2));
   }else{
     // trim:

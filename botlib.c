@@ -89,11 +89,11 @@ static char* guessAppropriateFilename(char* data){
   // todo: look at mimetype? use file(1)¿¿ libmagic
   // todo?: get real mimetype from curl
   // source: https://en.wikipedia.org/wiki/List_of_file_signatures
-  if(STARTS_WITH(data, "\x89PNG\x0D\x0A\x1A\x0A"))return "image.png";
-  if(STARTS_WITH(data, "\xFF\xD8\xFF"))return "photo.jpg";
-  if(STARTS_WITH(data, "GIF8"))return "animation.gif";
-  if(STARTS_WITH(data, "%PDF-"))return "document.pdf";
-  if(STARTS_WITH(data, "PK\x03\x04"))return "archive.zip.txt";
+  if(startsWith(data, "\x89PNG\x0D\x0A\x1A\x0A"))return "image.png";
+  if(startsWith(data, "\xFF\xD8\xFF"))return "photo.jpg";
+  if(startsWith(data, "GIF8"))return "animation.gif";
+  if(startsWith(data, "%PDF-"))return "document.pdf";
+  if(startsWith(data, "PK\x03\x04"))return "archive.zip.txt";
   return "unknown file.txt";
 }
 
@@ -147,7 +147,7 @@ static Buffer _request_impl(char* url, int post, ...){
     Z(curl_mime_name(field, name));
 
     if(access(path, R_OK)){
-      if(!STARTS_WITH(path, "https://") && !STARTS_WITH(path, "http://")){
+      if(!startsWith(path, "https://") && !startsWith(path, "http://")){
         perror(path);
         goto finally;
       }

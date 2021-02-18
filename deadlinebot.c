@@ -51,7 +51,7 @@ int proccesLine(cJSON* line, Buffer* b){
 
   char* str = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(line, 0))));
   if(str[0] == '#'){
-    if(STARTS_WITH(str, "#coronaplot")){
+    if(startsWith(str, "#coronaplot")){
       char* plot = E(find("twixtractor/corona.plot", "")); // todo: fix hardcoded path
       Z(setenv("plot", plot, 1));
       Z(system("\"$plot\""));
@@ -60,7 +60,7 @@ int proccesLine(cJSON* line, Buffer* b){
       free(attachment); // todo: append to attachment, in case we have multiple attachments
       attachment = E(uploadFile("corona.png", "photo", SHLEX, "bottoken.txt"));
       Z(remove("corona.png"));
-    }else if(STARTS_WITH(str, "#corona")){
+    }else if(startsWith(str, "#corona")){
       char* res = request("https://corona-stats.online/russia?format=json");
       cJSON* json = E(cJSON_Parse(res));
       free(res);
