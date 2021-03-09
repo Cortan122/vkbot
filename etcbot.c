@@ -135,6 +135,11 @@ void ded_command(ParsedCommand* cmd){
   system("./deadlinebot &"); // todo
 }
 
+void tgrestart_command(ParsedCommand* cmd){
+  PRIVATE_COMMAND(cmd);
+  system("rm ~/.telegram-cli/state && ~/bots/c/cronbot"); // todo
+}
+
 void email_command(ParsedCommand* cmd){
   PRIVATE_COMMAND(cmd);
   system("../twixtractor/rssupdate.sh &"); // todo

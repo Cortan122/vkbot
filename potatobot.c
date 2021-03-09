@@ -236,7 +236,7 @@ static void formatAttachments(Buffer* b, cJSON* json, Buffer* prefix){
         E(cJSON_GetObjectItem(E(cJSON_GetObjectItem(attachment, type)), "sticker_id"))->valueint
       );
     }else{
-      // audio_playlist
+      // audio_playlist, call
       Buffer$printf(b, "❓ какойето непонятное вложение типа \"%s\"", type);
       printJson(attachment);
     }
