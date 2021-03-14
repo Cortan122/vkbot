@@ -36,6 +36,7 @@ cJSON* tgapiRequest(char* endpoint, char* token, ...){
   bool err = E(cJSON_GetObjectItem(json, "ok"))->type == cJSON_False;
   if(err){
     Z(printJson(json));
+    fflush(stdout);
     cJSON_Delete(json);
     return NULL;
   }else{
@@ -126,6 +127,7 @@ void callback(cJSON* json){
         }
 
         printJson(json);
+        fflush(stdout);
       }
     }
 
@@ -137,6 +139,7 @@ void callback(cJSON* json){
     cJSON_AddItemToObject(lastmsg_db, Buffer$toString(&b), cJSON_DetachItemFromObjectCaseSensitive(json, "text"));
   }else{
     printJson(json);
+    fflush(stdout);
   }
 
   if(response && reply_to_message_id){
