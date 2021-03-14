@@ -1,7 +1,7 @@
 MAKEFLAGS += -j8
 LDFLAGS=-lcurl -lpthread -lm
 CFLAGS=-fdollars-in-identifiers -funsigned-char -Wall -Wextra -Wno-parentheses -Werror=vla
-EXECUTABLES=print send cronbot deadlinebot botbot gapi vkapi
+EXECUTABLES=print send cronbot deadlinebot botbot gapi vkapi tgrevbot
 # CC=gcc
 
 EXTRALIBS=potatobot.o etcbot.o extralib.o
@@ -19,12 +19,12 @@ ifneq ($(CC), tcc)
   EXECUTABLES += potatobot
 endif
 
-all: $(EXECUTABLES) token.txt bottoken.txt apikey.txt pybottoken.txt
+all: $(EXECUTABLES) token.txt bottoken.txt apikey.txt pybottoken.txt tgtoken.txt
 $(EXECUTABLES): $(LIBS)
 $(LIBS) $(EXTRALIBS): $(HEADERS)
 $(patsubst %,%.o,$(EXECUTABLES)): $(HEADERS)
 botbot: $(EXTRALIBS)
-potatobot send: extralib.o
+potatobot send tgrevbot: extralib.o
 
 run: all
 	./$$(ls -t *.c | sed 's/.c$$//' | xargs -I R find R -prune 2>/dev/null | head -n 1)
