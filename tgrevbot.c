@@ -64,6 +64,8 @@ void tglongpoll(char* token, JSONCallback callback){
       NULL
     ));
 
+    if(cJSON_GetArraySize(res))offset = -1;
+
     cJSON* update;
     cJSON_ArrayForEach(update, res){
       int64_t id = getNumber(update, "update_id");
