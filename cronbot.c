@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 
 char* startScriptPath = NULL;
@@ -128,7 +129,7 @@ int proccesLine(cJSON* line, Buffer* b){
 
 char* getNewCrontab(){
   Buffer b = Buffer$new();
-  cJSON* table = E(gapiRequest("1HTom_rLaBVQFYkWGJWEM8v1HQSZj5pHkrUDbpYVtH1g", "crontab!A2:B", NULL));
+  cJSON* table = E(gapiRequest("1Slk3qh-E9w8LRa6QRAsoVhwFSkRFKPqHi-e2FCMPW_w", "crontab!A2:B", NULL));
 
   cJSON* line;
   cJSON_ArrayForEach(line, table)proccesLine(line, &b);
@@ -141,31 +142,81 @@ char* getNewCrontab(){
   return NULL;
 }
 
-void updateAnimeUrl(){
+bool isValidName(char* name){
+  if(name[0] < 'a' || name[0] > 'z')return false;
+
+  for(int i = 0; name[i]; i++){
+    if( (name[0] < 'a' || name[0] > 'z') && (name[0] < 'A' || name[0] > 'Z') )return false;
+  }
+
+  return true;
+}
+
+char* getNewVartab(){
   Buffer b = Buffer$new();
   cJSON* table = NULL;
+  table = E(gapiRequest("1Slk3qh-E9w8LRa6QRAsoVhwFSkRFKPqHi-e2FCMPW_w", "vars!A:B", NULL));
+
+  cJSON* line;
+  cJSON_ArrayForEach(line, table){
+    if(cJSON_GetArraySize(line) < 2)continue;
+
+    char* name = E(cJSON_GetStringValue(cJSON_GetArrayItem(line, 0)));
+    char* value = E(cJSON_GetStringValue(cJSON_GetArrayItem(line, 1)));
+
+    if(!isValidName(name)){
+      fprintf(stderr, "var name '%s' contains invalid char\n", name);
+      fflush(stderr);
+      continue;
+    }
+
+    Buffer$printf(&b, "%s='", name);
+    for(int i = 0; value[i]; i++){
+      if(value[i] == '\''){
+        Buffer$appendString(&b, "'\\''");
+      }else{
+        Buffer$appendChar(&b, value[i]);
+      }
+    }
+    Buffer$appendString(&b, "'\n");
+  }
+  cJSON_Delete(table);
+
+  return Buffer$toString(&b);
+  finally:
+  cJSON_Delete(table);
+  Buffer$delete(&b);
+  return NULL;
+}
+
+void updateAnimeUrl(){
+  Buffer b = Buffer$new();
+  char* vartab = NULL;
   char* path = NULL;
 
-  table = E(gapiRequest("1HTom_rLaBVQFYkWGJWEM8v1HQSZj5pHkrUDbpYVtH1g", "anime!D3", NULL));
-  char* url = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(E(cJSON_GetArrayItem(table, 0)), 0))));
+  vartab = E(getNewVartab());
 
-  // todo: what if it doesn't exist
-  path = E(find("twixtractor/animeSearchUrl.txt", NULL)); // todo: fix hardcoded path
-  Buffer$appendFile(&b, path);
-  Buffer$trimEnd(&b);
+  path = find("twixtractor/vartab.sh", NULL); // todo: fix hardcoded path
+  if(path){
+    Buffer$appendFile(&b, path);
+  }else{
+    char* folder = E(find("twixtractor", NULL));
+    Buffer$printf(&b, "%s/vartab.sh", folder);
+    path = strdup(Buffer$toString(&b));
+    free(folder);
+  }
 
-  if(strcmp(Buffer$toString(&b), url)){
-    printf("Replacing anime url at %s\n", getTimeString());
+  if(strcmp(Buffer$toString(&b), vartab)){
+    printf("Replacing anime vartab at %s\n", getTimeString());
     fflush(stdout);
     FILE* fp = E(fopen(path, "w"));
-    fputs(url, fp);
-    fputc('\n', fp); // fputs is stupid (no \n)
+    fputs(vartab, fp);
     Z(fclose(fp));
   }
 
   finally:;
   Buffer$delete(&b);
-  cJSON_Delete(table);
+  free(vartab);
   free(path);
 }
 
