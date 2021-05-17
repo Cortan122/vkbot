@@ -152,7 +152,16 @@ void callback(cJSON* json, void* arg){
 
 void* startLongpoll_thread(void* arg){
   char* token = arg;
-  longpollEx(token, callback, token);
+  while(1){
+    time_t startTime = time(NULL);
+    longpollEx(token, callback, token);
+    time_t delta = time(NULL) - startTime;
+    if(time(NULL) - startTime < 3600){
+      THROW("longpollEx", "after %ld seconds", delta);
+    }
+  }
+  finally:
+  exit(1);
   return NULL;
 }
 
