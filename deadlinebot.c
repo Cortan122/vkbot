@@ -232,9 +232,14 @@ int pinLastMessage(char* chat){
   r = E(apiRequest("messages.getById", "token.txt", "message_ids", Buffer$toString(&b), NULL));
   cJSON* lastMessage = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
   fromid = E(cJSON_GetObjectItem(lastMessage, "from_id"))->valueint;
+  int localid = E(cJSON_GetObjectItem(lastMessage, "conversation_message_id"))->valueint;
+  cJSON_Delete(r);
+
+  Buffer$reset(&b);
+  Buffer$printf(&b, "%d", localid);
 
   if(fromid < 0){
-    cJSON_Delete(E(apiRequest("messages.pin", "token.txt", "peer_id", chat, "message_id", Buffer$toString(&b), NULL)));
+    cJSON_Delete(E(apiRequest("messages.pin", "bottoken.txt", "peer_id", chat, "conversation_message_id", Buffer$toString(&b), NULL)));
   }else{
     printf("can't pin at %s\n", getTimeString());
     fflush(stdout);
