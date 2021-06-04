@@ -470,7 +470,11 @@ static void* sendPotato_thread(void* voidptr){
   Buffer$appendString(&b, p->text);
   if(!(b.len && b.body[b.len-1] == '\n'))Buffer$appendString(&b, "\n\n");
   Z(formatCopyrightString(&b, p->user, p->chat, p->time));
-  if(p->edit)Buffer$appendString(&b, "[edit]");
+  if(p->edit == 1){
+    Buffer$appendString(&b, "[edit]");
+  }else if(p->edit == 2){
+    Buffer$appendString(&b, "[bomb]");
+  }
 
   sendMessage(BOT_TOK, BOT_DEST, "disable_mentions", "1", "message", Buffer$toString(&b));
 
@@ -511,6 +515,10 @@ void potato_callback(cJSON* json){
     if(old == NULL || strcmp(E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5)))), old->text) != 0){
       #ifndef DISABLE_EDITS
         sendPotato(old, 1);
+      #else
+        if(cJSON_GetObjectItem(E(cJSON_GetArrayItem(json, 6)), "is_expired")){
+          sendPotato(old, 2);
+        }
       #endif
       old = E(Potato$new(json));
     }
