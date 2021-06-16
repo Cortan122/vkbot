@@ -78,6 +78,8 @@ int processCommand(cJSON* json, const Command* rom){
       retval = 0;
       goto finally;
     }
+  }else if(flags&2){
+    res->user = MY_ID;
   }
 
   res->str_chat = toString(res->chat);
