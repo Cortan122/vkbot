@@ -65,10 +65,13 @@ int proccesLine(cJSON* line, Buffer* b){
       cJSON* json = E(cJSON_Parse(res));
       free(res);
       cJSON* data = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(json, "data")), 0));
-      Buffer$printf(b, "Корона: новых %d, всего %d\n",
-        E(cJSON_GetObjectItem(data, "todayCases"))->valueint,
-        E(cJSON_GetObjectItem(data, "active"))->valueint
-      );
+      int today = E(cJSON_GetObjectItem(data, "todayCases"))->valueint;
+      int active = E(cJSON_GetObjectItem(data, "active"))->valueint;
+      if(today){
+        Buffer$printf(b, "Корона: новых %d, всего %d\n", today, active);
+      }else{
+        Buffer$printf(b, "Корона: новых ¯\\_(ツ)_/¯, всего %d\n", active);
+      }
       cJSON_Delete(json);
     }
     return 0;
