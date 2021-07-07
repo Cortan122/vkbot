@@ -23,6 +23,7 @@
 
 struct option longOptionRom[] = {
   {"to", required_argument, 0, 't'},
+  {"reply", required_argument, 0, 'R'},
   {"token", required_argument, 0, 'T'},
   {"file", required_argument, 0, 'f'},
   {"type", required_argument, 0, 'x'},
@@ -37,8 +38,20 @@ char* destination = NULL;
 char* filepath = NULL;
 char* filetype = "doc";
 char* message = NULL;
+char* reply_to = NULL;
 bool slurp = false;
 FILE* slurpfile;
+
+bool sendMsg(char* message, char* attachment){
+  sendMessage(token, destination,
+    "message", message ?: "",
+    "attachment", attachment ?: "",
+    "reply_to", reply_to ?: ""
+  );
+  return false;
+  finally:;
+  return true;
+}
 
 char* parseDestination_cli(char* src){
   static char res[20];
@@ -53,7 +66,7 @@ char* parseDestination_cli(char* src){
 void parseArgv(int argc, char** argv){
   while(1){
     int optionIndex = 0;
-    int c = getopt_long(argc, argv, "hnt:f:T:s::x:", longOptionRom, &optionIndex);
+    int c = getopt_long(argc, argv, "hnt:f:T:R:s::x:", longOptionRom, &optionIndex);
     if(c == -1)break;
     switch(c){
       case 0:
@@ -63,6 +76,9 @@ void parseArgv(int argc, char** argv){
         exit(1);
       case 't':
         destination = parseDestination_cli(optarg);
+        break;
+      case 'R':
+        reply_to = optarg;
         break;
       case 'T':
         token = optarg;
@@ -94,6 +110,7 @@ void parseArgv(int argc, char** argv){
           "\n"
           "Options:\n"
           "  -t, --to <peer_id>  Where are we going to send the message\n"
+          "  -R, --reply <msgid> Which message are we replying to\n"
           "  -T, --token <file>  Path to token file (default: token.txt)\n"
           "  -f, --file <name>   The file to attach\n"
           "  -x, --type <name>   File type (doc|photo|graffiti)\n"
@@ -157,7 +174,7 @@ bool slurpMessage(){
   }
 
   if(message.len || attachment.len){
-    sendMessage(token, destination, "message", Buffer$toString(&message), "attachment", Buffer$toString(&attachment));
+    Z(sendMsg(Buffer$toString(&message), Buffer$toString(&attachment)));
   }
 
   retval = !feof(slurpfile);
@@ -177,7 +194,7 @@ int main(int argc, char** argv){
   if(message || filepath){
     Buffer b = Buffer$new();
     if(filepath)free(Buffer$appendString(&b, E(uploadFile(filepath, filetype, destination, token))));
-    sendMessage(token, destination, "message", message ?: "", "attachment", Buffer$toString(&b));
+    Z(sendMsg(message, Buffer$toString(&b)));
     Buffer$delete(&b);
     free(message);
   }

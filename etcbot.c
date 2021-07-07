@@ -142,7 +142,10 @@ void tgrestart_command(ParsedCommand* cmd){
 
 void email_command(ParsedCommand* cmd){
   PRIVATE_COMMAND(cmd);
-  system("../twixtractor/rssupdate.sh &"); // todo
+  Z(setenv("chat", cmd->str_chat, 1));
+  Z(setenv("replyId", cmd->str_replyId, 1));
+  system("../twixtractor/rssupdate.sh $chat $replyId &"); // todo
+  finally:;
 }
 
 void banner_command(ParsedCommand* cmd){
