@@ -1,5 +1,5 @@
 MAKEFLAGS += -j8
-LDFLAGS=-lcurl -lpthread -lm
+LDFLAGS=-lcurl -lpthread -lm -lpcre
 CFLAGS=-fdollars-in-identifiers -funsigned-char -Wall -Wextra -Wno-parentheses -Werror=vla
 EXECUTABLES=print send cronbot deadlinebot botbot gapi vkapi tgrevbot
 # CC=gcc

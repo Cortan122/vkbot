@@ -43,3 +43,6 @@ void email_command(ParsedCommand* cmd);
 void banner_command(ParsedCommand* cmd);
 void at_command(ParsedCommand* cmd);
 void rev_command(ParsedCommand* cmd);
+void tiktok_init();
+void tiktok_deinit();
+void tiktok_callback(cJSON* json);

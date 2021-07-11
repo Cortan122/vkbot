@@ -4,6 +4,7 @@
 
 #include <string.h>
 #include <stdbool.h>
+#include <pcre.h>
 
 #define PRIVATE_COMMAND(cmd) ({ \
   if(cmd->user != MY_ID && cmd->user != 156402199 && cmd->user != 77662058){ \
@@ -42,7 +43,7 @@ void pybot_command(ParsedCommand* cmd){
   );
 }
 
-static const int chatIdMap[] = { 1, 8, 16, 17, 20, 19, 0 };
+static const int chatIdMap[] = { 1, 8, 16, 17, 20, 19, 25, 28, 30, 0 };
 
 void read_command(ParsedCommand* cmd){
   // todo: fail gracefully
@@ -286,4 +287,111 @@ void rev_command(ParsedCommand* cmd){
   Buffer$delete(&message_id);
   cJSON_Delete(r);
   if(isBroken)respond(cmd, "чтото пошло нетак 😇");
+}
+
+typedef struct TiktokDTO {
+  char* url;
+  int msgid;
+  int chatId;
+} TiktokDTO;
+
+static char* tiktok_regex_src = "https://vm\\.tiktok\\.com/[0-9a-zA-Z\\-_]{9}/?";
+static char* tiktok_tempdir = NULL;
+static pcre* tiktok_regex = NULL;
+static pcre_extra* tiktok_extra = NULL;
+
+void tiktok_init(){
+  const char* err = NULL;
+  int erroffset;
+  tiktok_tempdir = E(find("twixtractor/tmp", NULL));
+  tiktok_regex = E(pcre_compile(tiktok_regex_src, PCRE_UTF8, &err, &erroffset, NULL));
+  tiktok_extra = pcre_study(tiktok_regex, 0, &err);
+  return;
+  finally:
+  if(err){
+    fprintf(stderr, "Failed to compile regex \x1b[31m/%s/\x1b[0m at offset \x1b[33m%d\x1b[0m: %s\n", tiktok_regex_src, erroffset, err);
+    fflush(stderr);
+  }
+  tiktok_regex = NULL;
+}
+
+void tiktok_deinit(){
+  pcre_free(tiktok_regex);
+  pcre_free_study(tiktok_extra);
+  free(tiktok_tempdir);
+}
+
+void* tiktok_thread(void* ctx){
+  TiktokDTO* dto = ctx;
+  cJSON* r = NULL;
+  char* attachment = NULL;
+  Buffer b = Buffer$new();
+  Buffer b2 = Buffer$new();
+  Buffer$printf(&b, "%s/tiktok_%ld_%d.mp4", tiktok_tempdir, time(NULL), dto->msgid);
+
+  Z(setenv("url", dto->url, 1));
+  Z(setenv("outfile", Buffer$toString(&b), 1));
+  Z(system("youtube-dl -o \"$outfile\" \"$url\""));
+
+  Buffer$printf(&b2, "%d", dto->chatId);
+  attachment = E(uploadFile(Buffer$toString(&b), "video", "189911804", "token.txt"));
+  printf("attachment = %s\n", attachment);
+
+  Buffer$reset(&b);
+  Buffer$printf(&b, "%d", dto->msgid);
+  r = E(apiRequest("messages.getById", "token.txt", "message_ids", Buffer$toString(&b), NULL));
+  cJSON* msg = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
+  int cmsgid = E(cJSON_GetObjectItem(msg, "conversation_message_id"))->valueint;
+  Buffer$reset(&b);
+  Buffer$printf(&b, "{\"peer_id\": %d,\"conversation_message_ids\": [%d], \"is_reply\": true}", dto->chatId, cmsgid);
+
+  sendMessage("bottoken.txt", Buffer$toString(&b2),
+    "attachment", attachment,
+    "forward", Buffer$toString(&b)
+  );
+
+  finally:
+  Buffer$delete(&b);
+  Buffer$delete(&b2);
+  free(dto->url);
+  free(dto);
+  free(attachment);
+  cJSON_Delete(r);
+  return NULL;
+}
+
+void tiktok_callback(cJSON* json){
+  if(tiktok_regex == NULL)return;
+
+  if(E(cJSON_GetArrayItem(json, 0))->valueint != 4)return;
+  int chatId = E(cJSON_GetArrayItem(json, 3))->valueint;
+  if(chatId < 2000000000)return;
+  char* userid = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(json, 6)), "from"))));
+  if(atoi(userid) < 0)return;
+
+  int msgid = E(cJSON_GetArrayItem(json, 1))->valueint;
+  char* text = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5))));
+
+  int out[3];
+  int retval = pcre_exec(tiktok_regex, tiktok_extra, text, strlen(text), 0, 0, out, 3);
+  if(retval == PCRE_ERROR_NOMATCH)return;
+  if(retval != 1){
+    THROW("pcre_exec(tiktok_regex)", "%d", retval);
+  }
+
+  int botid = 0;
+  for(; chatIdMap[botid]; botid++){
+    if(chatIdMap[botid] == chatId - 2000000000)break;
+  }
+  botid++;
+
+  char* url = strndup(text + out[0], out[1]-out[0]);
+  printf("found match \x1b[92m'%s'\x1b[0m in \x1b[32m\"%s\"\x1b[0m\n", url, text);
+  TiktokDTO* dto = calloc(1, sizeof(TiktokDTO));
+  dto->url = url;
+  dto->msgid = msgid;
+  dto->chatId = botid + 2000000000;
+  START_THREAD(tiktok_thread, dto);
+
+  finally:;
 }

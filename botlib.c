@@ -335,8 +335,16 @@ char* uploadFile(char* path, char* type, char* destination, char* token){
   Buffer result = Buffer$new();
   cJSON* res = NULL;
   bool isPhoto = strcmp(type, "photo") == 0;
+  bool isVideo = strcmp(type, "video") == 0;
   if(isPhoto){
     res = E(apiRequest("photos.getMessagesUploadServer", token, "peer_id", destination, NULL));
+  }else if(isVideo){
+    res = E(apiRequest("video.save", token, "group_id", destination, "is_private", "1", "no_comments", "1", NULL));
+    Buffer$printf(&result, "video%d_%d_%s",
+      E(cJSON_GetObjectItem(res, "owner_id"))->valueint,
+      E(cJSON_GetObjectItem(res, "video_id"))->valueint,
+      E(cJSON_GetStringValue(E(cJSON_GetObjectItem(res, "access_key"))))
+    );
   }else{
     if(strcmp(path + strlen(path) - 4, ".mp3") == 0)type = "audio_message";
     res = E(apiRequest("docs.getMessagesUploadServer", token, "type", type, "peer_id", destination, NULL));
@@ -344,7 +352,7 @@ char* uploadFile(char* path, char* type, char* destination, char* token){
 
   // todo: cache upload servers
   char* upload_url = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(res, "upload_url"))));
-  cJSON* res2 = E(postFile(upload_url, isPhoto?"photo":"file", path));
+  cJSON* res2 = E(postFile(upload_url, isPhoto?"photo":isVideo?"video_file":"file", path));
   cJSON_Delete(res);
   res = res2;
 
@@ -365,7 +373,7 @@ char* uploadFile(char* path, char* type, char* destination, char* token){
       E(cJSON_GetObjectItem(arr, "id"))->valueint,
       E(cJSON_GetStringValue(E(cJSON_GetObjectItem(arr, "access_key"))))
     );
-  }else{
+  }else if(!isVideo){
     res2 = E(apiRequest("docs.save", token, "file", E(cJSON_GetStringValue(E(cJSON_GetObjectItem(res, "file")))), NULL));
     cJSON_Delete(res);
     res = res2;
