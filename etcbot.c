@@ -343,7 +343,7 @@ void* tiktok_thread(void* ctx){
   cJSON* msg = E(cJSON_GetArrayItem(E(cJSON_GetObjectItem(r, "items")), 0));
   int cmsgid = E(cJSON_GetObjectItem(msg, "conversation_message_id"))->valueint;
   Buffer$reset(&b);
-  Buffer$printf(&b, "{\"peer_id\": %d,\"conversation_message_ids\": [%d], \"is_reply\": true}", dto->chatId, cmsgid);
+  Buffer$printf(&b, "{\"peer_id\": %d, \"conversation_message_ids\": [%d], \"is_reply\": true}", dto->chatId, cmsgid);
 
   sendMessage("bottoken.txt", Buffer$toString(&b2),
     "attachment", attachment,
@@ -387,6 +387,7 @@ void tiktok_callback(cJSON* json){
 
   char* url = strndup(text + out[0], out[1]-out[0]);
   printf("found match \x1b[92m'%s'\x1b[0m in \x1b[32m\"%s\"\x1b[0m\n", url, text);
+  fflush(stdout);
   TiktokDTO* dto = calloc(1, sizeof(TiktokDTO));
   dto->url = url;
   dto->msgid = msgid;

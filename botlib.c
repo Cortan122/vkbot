@@ -94,6 +94,7 @@ static char* guessAppropriateFilename(char* data){
   if(startsWith(data, "GIF8"))return "animation.gif";
   if(startsWith(data, "%PDF-"))return "document.pdf";
   if(startsWith(data, "PK\x03\x04"))return "archive.zip.txt";
+  if(startsWith(data+4, "ftypisom"))return "video.mp4";
   return "unknown file.txt";
 }
 
