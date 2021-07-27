@@ -295,7 +295,7 @@ typedef struct TiktokDTO {
   int chatId;
 } TiktokDTO;
 
-static char* tiktok_regex_src = "https://vm\\.tiktok\\.com/[0-9a-zA-Z\\-_]{9}/?";
+static char* tiktok_regex_src = "https://vm\\.tiktok\\.com/[0-9a-zA-Z\\-_]{6,}/?|https://www\\.tiktok\\.com/@[a-zA-Z0-9_.]+/video/[0-9]{15,}/?";
 static char* tiktok_tempdir = NULL;
 static pcre* tiktok_regex = NULL;
 static pcre_extra* tiktok_extra = NULL;
@@ -335,7 +335,6 @@ void* tiktok_thread(void* ctx){
 
   Buffer$printf(&b2, "%d", dto->chatId);
   attachment = E(uploadFile(Buffer$toString(&b), "video", "189911804", "token.txt"));
-  printf("attachment = %s\n", attachment);
 
   Buffer$reset(&b);
   Buffer$printf(&b, "%d", dto->msgid);
