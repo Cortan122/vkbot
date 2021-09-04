@@ -53,6 +53,8 @@ char* find(char* name, char* ext){
   CHECK_DIR(ext);
   E(realpath(".", exe));
   CHECK_DIR(ext);
+  E(realpath(E(getenv("HOME")), exe));
+  CHECK_DIR(ext);
 
   finally:
   Buffer$delete(&b);
