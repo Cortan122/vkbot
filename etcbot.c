@@ -183,6 +183,9 @@ void poll_callback(cJSON* json){
   if(!cJSON_GetObjectItem(attachments, "attach1_type"))return;
   if(strcmp(E(cJSON_GetStringValue(cJSON_GetObjectItem(attachments, "attach1_type"))), "poll"))return;
 
+  char* text = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5))));
+  if(strstr(text, "PRIVATE"))return;
+
   char* pollid = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(attachments, "attach1"))));
   Buffer$printf(&attach, "poll%s_%s", userid, pollid);
   sendMessage("bottoken.txt", "2000000007",
