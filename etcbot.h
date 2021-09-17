@@ -28,10 +28,16 @@ typedef struct ParsedCommand {
 
 typedef void (CommandCallback)(ParsedCommand*);
 
-void potato_callback(cJSON* json);
-void poll_callback(cJSON* json);
 void potato_init();
 void potato_deinit();
+void potato_callback(cJSON* json);
+
+void tiktok_init();
+void tiktok_deinit();
+void tiktok_observer(ParsedCommand* cmd);
+void poll_observer(ParsedCommand* cmd);
+void antilink_observer(ParsedCommand* cmd);
+
 void startbot_command(ParsedCommand* cmd);
 void pybot_command(ParsedCommand* cmd);
 void read_command(ParsedCommand* cmd);
@@ -39,10 +45,8 @@ void stats_command(ParsedCommand* cmd);
 void friend_command(ParsedCommand* cmd);
 void ded_command(ParsedCommand* cmd);
 void tgrestart_command(ParsedCommand* cmd);
+void wifirestart_command(ParsedCommand* cmd);
 void email_command(ParsedCommand* cmd);
 void banner_command(ParsedCommand* cmd);
 void at_command(ParsedCommand* cmd);
 void rev_command(ParsedCommand* cmd);
-void tiktok_init();
-void tiktok_deinit();
-void tiktok_callback(cJSON* json);

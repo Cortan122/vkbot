@@ -13,7 +13,7 @@ const Command rom[] = {
   { "token.txt", "/start", startbot_command, NULL, NULL },
   { "bottoken.txt", "/start", startbot_command, NULL, NULL },
   { "token.txt", "/python", pybot_command, NULL, NULL },
-  { "pybottoken.txt", "*/python", pybot_command, NULL, NULL },
+  // { "pybottoken.txt", "*/python", pybot_command, NULL, NULL },
   { "token.txt", "/read", read_command, NULL, NULL },
   { "token.txt", "/stats", stats_command, NULL, NULL },
   { "token.txt", "/stat", stats_command, NULL, NULL },
@@ -22,6 +22,7 @@ const Command rom[] = {
   { "token.txt", "/ded", ded_command, NULL, NULL },
   { "token.txt", "/дед", ded_command, NULL, NULL },
   { "token.txt", "/tgrestart", tgrestart_command, NULL, NULL },
+  { "token.txt", "/wifirestart", wifirestart_command, NULL, NULL },
   { "token.txt", "/email", email_command, NULL, NULL },
   { "token.txt", "/banner", banner_command, NULL, NULL },
   { "token.txt", "/at", at_command, NULL, NULL },
@@ -32,8 +33,9 @@ const Command rom[] = {
   { "token.txt", "\\рев", rev_command, NULL, NULL },
   { "token.txt", "\\кум", rev_command, NULL, NULL },
   { "token.txt", ".кум", rev_command, NULL, NULL },
-  { "token.txt", NULL, poll_callback, NULL, NULL },
-  { "token.txt", NULL, tiktok_callback, tiktok_init, tiktok_deinit },
+  { "token.txt", "", poll_observer, NULL, NULL },
+  { "token.txt", "", antilink_observer, NULL, NULL },
+  { "token.txt", "", tiktok_observer, tiktok_init, tiktok_deinit },
   { "token.txt", NULL, potato_callback, potato_init, potato_deinit }, // potatobot должен быть в конце тк он шакалит json (как?)
   { NULL }
 };
@@ -50,35 +52,33 @@ bool startsWithCommand(char* text, char* cmd){
   return textlen >= cmdlen && memcmp(text, cmd, cmdlen) == 0 && text[cmdlen] <= ' ';
 }
 
-int processCommand(cJSON* json, const Command* rom){
+void ParsedCommand$delete(ParsedCommand* cmd){
+  if(!cmd)return;
+  free(cmd->argv[0]);
+  free(cmd->argv);
+  free(cmd->str_chat);
+  free(cmd->str_user);
+  free(cmd->str_replyId);
+  free(cmd);
+}
+
+ParsedCommand* ParsedCommand$new(cJSON* json){
   ParsedCommand* res = NULL;
   char* textDup = NULL;
-  int retval = -1; // -1 = error, 0 = no match, 1 = yes match
 
   int type = E(cJSON_GetArrayItem(json, 0))->valueint;
-  if(type != 5 && type != 4)return 0;
+  if(type != 5 && type != 4)return NULL;
   int chatid = E(cJSON_GetArrayItem(json, 3))->valueint;
-  if(chatid < 0)return 0; // тут мы уходим чтобы боты другдруга не перебивали
-
   char* text = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5))));
-  bool isAuto = rom->cmd[0] == '*';
   int flags = E(cJSON_GetArrayItem(json, 2))->valueint;
-  if(isAuto && (flags&2))return 0;
-  if(!isAuto && !startsWithCommand(text, rom->cmd))return 0;
 
   res = calloc(sizeof(ParsedCommand), 1);
   res->event = json;
   res->user = res->chat = chatid;
-  res->token = rom->token;
   res->text = text;
-  // res->rom = rom;
   if(chatid > 2000000000){
     res->replyId = E(cJSON_GetArrayItem(json, 1))->valueint;
     res->user = atoi(E(cJSON_GetStringValue(E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(json, 6)), "from")))));
-    if(isAuto){
-      retval = 0;
-      goto finally;
-    }
   }else if(flags&2){
     res->user = MY_ID;
   }
@@ -94,10 +94,8 @@ int processCommand(cJSON* json, const Command* rom){
   for(int i = 0; text[i]; i++){
     if(text[i] <= ' ')res->argc++;
   }
-  res->argc += isAuto;
   res->argv = malloc(sizeof(char*) * (res->argc+1));
   int argCount = 0;
-  if(isAuto)res->argv[argCount++] = rom->cmd + 1;
   res->argv[argCount++] = textDup = strdup(text);
   for(int i = 0; text[i]; i++){
     if(text[i] <= ' '){
@@ -106,6 +104,27 @@ int processCommand(cJSON* json, const Command* rom){
     }
   }
   res->argv[res->argc] = NULL; // argv is null-terminated
+
+  return res;
+  finally:;
+  ParsedCommand$delete(res);
+  return NULL;
+}
+
+int processCommand(cJSON* json, const Command* rom){
+  ParsedCommand* res = NULL;
+  char* textDup = NULL;
+  int retval = -1; // -1 = error, 0 = no match, 1 = yes match
+
+  int type = E(cJSON_GetArrayItem(json, 0))->valueint;
+  if(type != 5 && type != 4)return 0;
+  int chatid = E(cJSON_GetArrayItem(json, 3))->valueint;
+  if(chatid < 0)return 0; // тут мы уходим чтобы боты другдруга не перебивали
+
+  char* text = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5))));
+  if(!startsWithCommand(text, rom->cmd))return 0;
+  res = E(ParsedCommand$new(json));
+  res->token = rom->token;
 
   struct timeval start;
   gettimeofday(&start, NULL);
@@ -124,13 +143,7 @@ int processCommand(cJSON* json, const Command* rom){
 
   retval = 1;
   finally:;
-  if(res){
-    free(res->argv);
-    free(res->str_chat);
-    free(res->str_user);
-    free(res->str_replyId);
-  }
-  free(res);
+  ParsedCommand$delete(res);
   free(textDup);
   return retval;
 }
@@ -144,6 +157,16 @@ void callback(cJSON* json, void* arg){
       JSONCallback* cb = rom[i].callback;
       cb(json);
       continue;
+    }
+    if(strlen(rom[i].cmd) == 0){
+      ParsedCommand* res = ParsedCommand$new(json);
+      if(res){
+        res->token = rom->token;
+        CommandCallback* cb = rom[i].callback;
+        cb(res);
+        ParsedCommand$delete(res);
+        continue;
+      }
     }
     if(commandFlag && processCommand(json, rom+i) == 1){
       // we can only trigger one command at a time (or can we¿?)

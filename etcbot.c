@@ -7,7 +7,7 @@
 #include <pcre.h>
 
 #define PRIVATE_COMMAND(cmd) ({ \
-  if(cmd->user != MY_ID && cmd->user != 156402199 && cmd->user != 77662058){ \
+  if(cmd->user != MY_ID){ \
     Buffer b = Buffer$new(); \
     Buffer$printf(&b, "ты что захотел меня сломать¿\nкоманда '%s' если что приватная))\nкак ты вообще о ней знаешь?", cmd->text); \
     respond(cmd, Buffer$toString(&b)); \
@@ -132,13 +132,18 @@ void friend_command(ParsedCommand* cmd){
 }
 
 void ded_command(ParsedCommand* cmd){
-  PRIVATE_COMMAND(cmd);
+  if(cmd->user != 77662058)PRIVATE_COMMAND(cmd);
   system("./deadlinebot &"); // todo
 }
 
 void tgrestart_command(ParsedCommand* cmd){
   PRIVATE_COMMAND(cmd);
   system("rm ~/.telegram-cli/state && ~/bots/c/cronbot"); // todo
+}
+
+void wifirestart_command(ParsedCommand* cmd){
+  PRIVATE_COMMAND(cmd);
+  system("sudo ip link set wlan0 down && sudo ip link set wlan0 up");
 }
 
 void email_command(ParsedCommand* cmd){
@@ -170,27 +175,24 @@ void banner_command(ParsedCommand* cmd){
   if(isBroken)respond(cmd, "чтото пошло нетак 😇");
 }
 
-void poll_callback(cJSON* json){
+void poll_observer(ParsedCommand* cmd){
   Buffer attach = Buffer$new();
 
-  if(E(cJSON_GetArrayItem(json, 0))->valueint != 4)return;
-  int chatId = E(cJSON_GetArrayItem(json, 3))->valueint;
-  if(chatId < 2000000000)return;
-  char* userid = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(json, 6)), "from"))));
-  if(atoi(userid) < 0)return;
+  if(E(cJSON_GetArrayItem(cmd->event, 0))->valueint != 4)return;
+  if(cmd->chat < 2000000000)return;
+  if(cmd->user < 0)return;
 
-  cJSON* attachments = E(cJSON_GetArrayItem(json, 7));
+  cJSON* attachments = E(cJSON_GetArrayItem(cmd->event, 7));
   if(!cJSON_GetObjectItem(attachments, "attach1_type"))return;
   if(strcmp(E(cJSON_GetStringValue(cJSON_GetObjectItem(attachments, "attach1_type"))), "poll"))return;
 
-  char* text = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5))));
-  if(strstr(text, "PRIVATE"))return;
+  if(strstr(cmd->text, "PRIVATE"))return;
 
   char* pollid = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(attachments, "attach1"))));
-  Buffer$printf(&attach, "poll%s_%s", userid, pollid);
+  Buffer$printf(&attach, "poll%s_%s", cmd->str_user, pollid);
   sendMessage("bottoken.txt", "2000000007",
     "attachment", Buffer$toString(&attach),
-    "message", chatId == 2000000002 ? "ВАЖНО" : ""
+    "message", cmd->chat == 2000000002 ? "ВАЖНО" : ""
   );
 
   finally:
@@ -362,20 +364,15 @@ void* tiktok_thread(void* ctx){
   return NULL;
 }
 
-void tiktok_callback(cJSON* json){
+void tiktok_observer(ParsedCommand* cmd){
   if(tiktok_regex == NULL)return;
 
-  if(E(cJSON_GetArrayItem(json, 0))->valueint != 4)return;
-  int chatId = E(cJSON_GetArrayItem(json, 3))->valueint;
-  if(chatId < 2000000000)return;
-  char* userid = E(cJSON_GetStringValue(E(cJSON_GetObjectItem(E(cJSON_GetArrayItem(json, 6)), "from"))));
-  if(atoi(userid) < 0)return;
-
-  int msgid = E(cJSON_GetArrayItem(json, 1))->valueint;
-  char* text = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(json, 5))));
+  if(E(cJSON_GetArrayItem(cmd->event, 0))->valueint != 4)return;
+  if(cmd->chat < 2000000000)return;
+  if(cmd->user < 0)return;
 
   int out[3];
-  int retval = pcre_exec(tiktok_regex, tiktok_extra, text, strlen(text), 0, 0, out, 3);
+  int retval = pcre_exec(tiktok_regex, tiktok_extra, cmd->text, strlen(cmd->text), 0, 0, out, 3);
   if(retval == PCRE_ERROR_NOMATCH)return;
   if(retval != 1){
     THROW("pcre_exec(tiktok_regex)", "%d", retval);
@@ -383,18 +380,66 @@ void tiktok_callback(cJSON* json){
 
   int botid = 0;
   for(; chatIdMap[botid]; botid++){
-    if(chatIdMap[botid] == chatId - 2000000000)break;
+    if(chatIdMap[botid] == cmd->chat - 2000000000)break;
   }
   botid++;
 
-  char* url = strndup(text + out[0], out[1]-out[0]);
-  printf("found match \x1b[92m'%s'\x1b[0m in \x1b[32m\"%s\"\x1b[0m\n", url, text);
+  char* url = strndup(cmd->text + out[0], out[1]-out[0]);
+  printf("found match \x1b[92m'%s'\x1b[0m in \x1b[32m\"%s\"\x1b[0m\n", url, cmd->text);
   fflush(stdout);
   TiktokDTO* dto = calloc(1, sizeof(TiktokDTO));
   dto->url = url;
-  dto->msgid = msgid;
+  dto->msgid = E(cJSON_GetArrayItem(cmd->event, 1))->valueint;
   dto->chatId = botid + 2000000000;
   START_THREAD(tiktok_thread, dto);
 
   finally:;
+}
+
+void antilink_observer(ParsedCommand* cmd){
+  if(cmd->user != MY_ID)return;
+  if(strlen(cmd->text) == 0)return;
+  Buffer message_id = Buffer$new();
+  Buffer attachment = Buffer$new();
+
+  int numLinks = 0;
+  cJSON* attachments = E(cJSON_GetArrayItem(cmd->event, 7));
+  cJSON* att;
+  cJSON_ArrayForEach(att, attachments){
+    if(!att->string || !att->valuestring)continue;
+    if(strncmp(att->string, "attach", 6))continue;
+    if(strcmp(att->string + strlen(att->string) - 5, "_type"))continue;
+
+    if(strcmp(att->valuestring, "link") == 0){
+      numLinks++;
+    }else{
+      if(attachment.len)Buffer$appendChar(&attachment, ',');
+      Buffer$appendString(&attachment, att->valuestring);
+      if(strcmp(att->valuestring, "poll") == 0){
+        Buffer$printf(&attachment, "%s_", cmd->str_user);
+      }
+
+      char* key = strndup(att->string, strlen(att->string) - 5);
+      char* data = cJSON_GetStringValue(cJSON_GetObjectItem(attachments, key));
+      Buffer$appendString(&attachment, data);
+      free(key);
+    }
+  }
+  if(!numLinks)goto finally;
+
+  int msgid = E(cJSON_GetArrayItem(cmd->event, 1))->valueint;
+  printf("found \x1b[33m%d\x1b[0m link attechments in message \e[35mid%d\e[0m\n", numLinks, msgid);
+  Buffer$printf(&message_id, "%d", msgid);
+
+  cJSON_Delete(E(apiRequest("messages.edit", "token.txt",
+    "peer_id", cmd->str_chat,
+    "message_id", Buffer$toString(&message_id),
+    "attachment", Buffer$toString(&attachment),
+    "message", cmd->text,
+    "keep_forward_messages", "1",
+  NULL)));
+
+  finally:;
+  Buffer$delete(&message_id);
+  Buffer$delete(&attachment);
 }

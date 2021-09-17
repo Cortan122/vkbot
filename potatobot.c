@@ -79,7 +79,10 @@ static double humanredableSize(int bytes, char* out){
 }
 
 static void printMallocStats(){
+  #pragma GCC diagnostic push
+  #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
   struct mallinfo info = mallinfo();
+  #pragma GCC diagnostic pop
   char c1, c2;
   double d1 = humanredableSize(info.uordblks, &c1);
   double d2 = humanredableSize(info.fordblks + info.uordblks, &c2);
@@ -436,6 +439,7 @@ static void Bag$add(Bag* b, int id, Potato* val){
   }
   if(b->firstIndex == -1)b->firstIndex = id;
   id -= b->firstIndex;
+  if(id < 0)return; // editted unknown message -- ignored (todo: fix leak)
 
   int oldlen = b->len;
   if(id >= b->len)b->len = id+1; // this is true if this is not an edit
