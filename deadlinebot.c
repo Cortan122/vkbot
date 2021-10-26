@@ -264,7 +264,8 @@ int main(int argc, char** argv){
     }
 
     sendMessage("bottoken.txt", SHLEX, "message", res, "attachment", attachment ?: "");
-    sendMessage("bottoken.txt", "190499058", "message", res);
+    sendMessage("bottoken.txt", "190499058", "message", res); // Егор
+    sendMessage("bottoken.txt", "77662058", "message", res); // Амина
     free(res);
 
     Z(pinLastMessage(SHLEX));
