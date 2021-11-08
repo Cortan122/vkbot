@@ -16,12 +16,15 @@
 // "{d}" -> "12 дней 5 часов"
 // "{D}" -> "12 дней"
 // "{M}" -> "13" тут зачемто ceil и мне страшно чтото менять
+// "{l}" -> "8 ноября"
 
 #define SHLEX "2000000001"
 
 char* attachment = NULL;
 
-// TODO: "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"
+const char* month_rom[] = {
+  "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"
+};
 
 char* russianPluralForm(int number, char* singular, char* dual, char* plural){
   if(number < 0)number *= -1;
@@ -126,6 +129,8 @@ int proccesLine(cJSON* line, Buffer* b){
         Buffer$printf(b, "%d %s", whole, russianPluralDays(whole));
       }else if(c == 'd'){
         Buffer$printf(b, "%d %s %d %s", whole, russianPluralDays(whole), part, russianPluralHours(part));
+      }else if(c == 'l'){
+        Buffer$printf(b, "%d %s", tm.tm_mday, month_rom[tm.tm_mon]);
       }else continue;
       i += 2;
     }else Buffer$appendChar(b, str[i]);
