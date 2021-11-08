@@ -21,6 +21,8 @@
 
 char* attachment = NULL;
 
+// TODO: "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"
+
 char* russianPluralForm(int number, char* singular, char* dual, char* plural){
   if(number < 0)number *= -1;
   number %= 100;
