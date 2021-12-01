@@ -25,6 +25,35 @@ static void respond(ParsedCommand* cmd, char* str){
   finally:;
 }
 
+static int extractAttachments(ParsedCommand* cmd, Buffer* out){
+  int numLinks = 0;
+  cJSON* attachments = cJSON_GetArrayItem(cmd->event, 7);
+
+  cJSON* att;
+  cJSON_ArrayForEach(att, attachments){
+    if(!att->string || !att->valuestring)continue;
+    if(strncmp(att->string, "attach", 6))continue;
+    if(strcmp(att->string + strlen(att->string) - 5, "_type"))continue;
+
+    if(strcmp(att->valuestring, "link") == 0){
+      numLinks++;
+    }else{
+      if(out->len)Buffer$appendChar(out, ',');
+      Buffer$appendString(out, att->valuestring);
+      if(strcmp(att->valuestring, "poll") == 0){
+        Buffer$printf(out, "%s_", cmd->str_user);
+      }
+
+      char* key = strndup(att->string, strlen(att->string) - 5);
+      char* data = cJSON_GetStringValue(cJSON_GetObjectItem(attachments, key));
+      Buffer$appendString(out, data);
+      free(key);
+    }
+  }
+
+  return numLinks;
+}
+
 void print_callback(cJSON* json){
   printJson(json);
 }
@@ -232,15 +261,18 @@ void rev_command(ParsedCommand* cmd){
   cJSON* r = NULL;
   char* text = NULL;
   Buffer message_id = Buffer$new();
+  Buffer attachment = Buffer$new();
   bool isBroken = true;
   Buffer$printf(&message_id, "%d", E(cJSON_GetArrayItem(cmd->event, 1))->valueint);
 
   if(cmd->argc > 1){
     char* text = invertKeyboardLayout(cmd->text + (cmd->argv[1] - cmd->argv[0]));
     if(cmd->user == MY_ID){
+      extractAttachments(cmd, &attachment);
       cJSON_Delete(E(apiRequest("messages.edit", "token.txt",
         "peer_id", cmd->str_chat,
         "message_id", Buffer$toString(&message_id),
+        "attachment", Buffer$toString(&attachment),
         "message", text,
         "keep_forward_messages", "1",
       NULL)));
@@ -290,6 +322,7 @@ void rev_command(ParsedCommand* cmd){
   finally:
   free(text);
   Buffer$delete(&message_id);
+  Buffer$delete(&attachment);
   cJSON_Delete(r);
   if(isBroken)respond(cmd, "чтото пошло нетак 😇");
 }
@@ -402,29 +435,7 @@ void antilink_observer(ParsedCommand* cmd){
   Buffer message_id = Buffer$new();
   Buffer attachment = Buffer$new();
 
-  int numLinks = 0;
-  cJSON* attachments = E(cJSON_GetArrayItem(cmd->event, 7));
-  cJSON* att;
-  cJSON_ArrayForEach(att, attachments){
-    if(!att->string || !att->valuestring)continue;
-    if(strncmp(att->string, "attach", 6))continue;
-    if(strcmp(att->string + strlen(att->string) - 5, "_type"))continue;
-
-    if(strcmp(att->valuestring, "link") == 0){
-      numLinks++;
-    }else{
-      if(attachment.len)Buffer$appendChar(&attachment, ',');
-      Buffer$appendString(&attachment, att->valuestring);
-      if(strcmp(att->valuestring, "poll") == 0){
-        Buffer$printf(&attachment, "%s_", cmd->str_user);
-      }
-
-      char* key = strndup(att->string, strlen(att->string) - 5);
-      char* data = cJSON_GetStringValue(cJSON_GetObjectItem(attachments, key));
-      Buffer$appendString(&attachment, data);
-      free(key);
-    }
-  }
+  int numLinks = extractAttachments(cmd, &attachment);
   if(!numLinks)goto finally;
 
   int msgid = E(cJSON_GetArrayItem(cmd->event, 1))->valueint;
