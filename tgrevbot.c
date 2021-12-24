@@ -58,7 +58,7 @@ void tglongpoll(char* token, JSONCallback callback){
     Buffer$reset(&b);
     Buffer$printf(&b, "%ld", ++offset);
     res = E(tgapiRequest("getUpdates", token,
-      "timeout", "1000",
+      "timeout", "30",
       "offset", Buffer$toString(&b),
       "allowed_updates", "[\"message\", \"edited_message\"]",
       NULL
