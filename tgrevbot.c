@@ -56,9 +56,9 @@ void tglongpoll(char* token, JSONCallback callback){
 
   while(true){
     Buffer$reset(&b);
-    Buffer$printf(&b, "%ld", ++offset);
+    Buffer$printf(&b, "%ld", offset);
     res = E(tgapiRequest("getUpdates", token,
-      "timeout", "30",
+      "timeout", "1000",
       "offset", Buffer$toString(&b),
       "allowed_updates", "[\"message\", \"edited_message\"]",
       NULL
@@ -69,7 +69,7 @@ void tglongpoll(char* token, JSONCallback callback){
     cJSON* update;
     cJSON_ArrayForEach(update, res){
       int64_t id = getNumber(update, "update_id");
-      if(offset < id)offset = id;
+      if(offset < id)offset = id+1;
 
       if(cJSON_GetObjectItem(update, "message")){
         callback(cJSON_GetObjectItem(update, "message"));
@@ -170,6 +170,9 @@ void callback(cJSON* json){
 }
 
 int main(){
+  printf("Starting \x1b[93mtgrevbot\x1b[0m at %s\n", getTimeString());
+  fflush(stdout);
+
   lastmsg_db = cJSON_CreateObject();
 
   tglongpoll("tgtoken.txt", callback);
