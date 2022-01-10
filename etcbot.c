@@ -209,6 +209,7 @@ void poll_observer(ParsedCommand* cmd){
 
   if(E(cJSON_GetArrayItem(cmd->event, 0))->valueint != 4)return;
   if(cmd->chat < 2000000000)return;
+  if(cmd->chat == 2000000025)return;
   if(cmd->user < 0)return;
 
   cJSON* attachments = E(cJSON_GetArrayItem(cmd->event, 7));

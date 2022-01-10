@@ -113,7 +113,7 @@ void waitForInternet(){
   if(!system("ping -c 1 1.1.1.1 >/dev/null"))return;
   fprintf(stderr, "Waiting for \e[41minternet\e[0m at %s\n", getTimeString());
   fflush(stderr);
-  while(system("ping -c 1 1.1.1.1 >/dev/null"));
+  while(system("ping -c 1 1.1.1.1 >/dev/null 2>/dev/null"));
   fprintf(stderr, "Done waiting for \e[41minternet\e[0m at %s\n", getTimeString());
   fflush(stderr);
 }
