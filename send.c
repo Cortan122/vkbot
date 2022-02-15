@@ -29,6 +29,7 @@ struct option longOptionRom[] = {
   {"type", required_argument, 0, 'x'},
   {"slurp", optional_argument, 0, 's'},
   {"notify", no_argument, 0, 'n'},
+  {"printid", no_argument, 0, 'i'},
   {"help", no_argument, 0, 'h'},
   {0, 0, 0, 0}
 };
@@ -40,14 +41,24 @@ char* filetype = "doc";
 char* message = NULL;
 char* reply_to = NULL;
 bool slurp = false;
+bool printid = false;
 FILE* slurpfile;
 
 bool sendMsg(char* message, char* attachment){
-  sendMessage(token, destination,
+  char* t = getRandomId();
+  cJSON* res = E(apiRequest(
+    "messages.send", token, "peer_id", destination, "random_id", t,
     "message", message ?: "",
     "attachment", attachment ?: "",
-    "reply_to", reply_to ?: ""
-  );
+    "reply_to", reply_to ?: "",
+    NULL
+  ));
+  free(t);
+  if(printid){
+    printf("%d\n", res->valueint);
+  }
+  cJSON_Delete(res);
+
   return false;
   finally:;
   return true;
@@ -66,7 +77,7 @@ char* parseDestination_cli(char* src){
 void parseArgv(int argc, char** argv){
   while(1){
     int optionIndex = 0;
-    int c = getopt_long(argc, argv, "hnt:f:T:R:s::x:", longOptionRom, &optionIndex);
+    int c = getopt_long(argc, argv, "hint:f:T:R:s::x:", longOptionRom, &optionIndex);
     if(c == -1)break;
     switch(c){
       case 0:
@@ -104,6 +115,9 @@ void parseArgv(int argc, char** argv){
       case 'x':
         filetype = optarg;
         break;
+      case 'i':
+        printid = true;
+        break;
       case 'h':
         printf(
           "Usage: send [options] <message>\n"
@@ -115,6 +129,7 @@ void parseArgv(int argc, char** argv){
           "  -f, --file <name>   The file to attach\n"
           "  -x, --type <name>   File type (doc|photo|graffiti)\n"
           "  -s, --slurp[=file]  Read messages from file (or stdin)\n"
+          "  -i, --printid       Print ids of the sent messages to stdout\n"
           "  -n, --notify        Equivalent to -T bottoken.txt -t " NUM(MY_ID) "\n"
           "  -h, --help          Output usage information\n"
           // "  -V, --version       output the version number\n"
