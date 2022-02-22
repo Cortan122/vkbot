@@ -161,7 +161,7 @@ void friend_command(ParsedCommand* cmd){
 }
 
 void ded_command(ParsedCommand* cmd){
-  if(cmd->user != 77662058)PRIVATE_COMMAND(cmd);
+  if(cmd->user != 77662058 && cmd->user != 234288523)PRIVATE_COMMAND(cmd);
   system("./deadlinebot &"); // todo
 }
 
