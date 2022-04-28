@@ -167,7 +167,7 @@ void ded_command(ParsedCommand* cmd){
 
 void tgrestart_command(ParsedCommand* cmd){
   PRIVATE_COMMAND(cmd);
-  system("killall telegram-cli; rm ~/.telegram-cli/state && ~/bots/c/cronbot"); // todo
+  system("killall telegram-cli; rm ~/.telegram-cli/state && ~/vk/c/cronbot"); // todo
 }
 
 void wifirestart_command(ParsedCommand* cmd){

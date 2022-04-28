@@ -19,7 +19,7 @@
   free(Buffer$appendString(&attachment, E(cb))); \
 })
 
-#define CR_COMMAND(cmd, type) CR_COMMAND_ATTACHMENT(cmd, free, uploadFile(path, type, destination, token))
+#define CR_COMMAND(cmd, type) CR_COMMAND_ATTACHMENT(cmd, free, _uploadFile(path, type, destination, token))
 
 struct option longOptionRom[] = {
   {"to", required_argument, 0, 't'},
@@ -29,6 +29,7 @@ struct option longOptionRom[] = {
   {"type", required_argument, 0, 'x'},
   {"slurp", optional_argument, 0, 's'},
   {"notify", no_argument, 0, 'n'},
+  {"telegram", no_argument, 0, 'G'},
   {"printid", no_argument, 0, 'i'},
   {"help", no_argument, 0, 'h'},
   {0, 0, 0, 0}
@@ -42,9 +43,106 @@ char* message = NULL;
 char* reply_to = NULL;
 bool slurp = false;
 bool printid = false;
+bool telegram = false;
 FILE* slurpfile;
 
+TelegramAttachment tg_attachments[11] = {0};
+int tg_attachments_count = 0;
+
+char* uploadFile_tg(char* path, char* type){
+  if(tg_attachments_count >= 10){
+    fprintf(stderr, "too many telegram attachments\n");
+    return NULL;
+  }
+
+  if(strcmp(type, "doc") == 0){
+    type = "document";
+  }
+
+  tg_attachments[tg_attachments_count].path = strdup(path);
+  tg_attachments[tg_attachments_count].type = type;
+  tg_attachments_count++;
+
+  return strdup("__TG_FILE__");
+}
+
+char* _uploadFile(char* path, char* type, char* destination, char* token){
+  if(telegram){
+    return uploadFile_tg(path, type);
+  }else{
+    return uploadFile(path, type, destination, token);
+  }
+}
+
+bool sendMsg_tg(char* message, char* attachment){
+  char* method = "sendMessage";
+  char* text_name = "text";
+  cJSON* media_array = NULL;
+  bool retval = true;
+  Buffer b = Buffer$new();
+
+  if(attachment && strlen(attachment)){
+    if(tg_attachments_count != 1){
+      media_array = cJSON_CreateArray();
+      method = "sendMediaGroup";
+      text_name = "media";
+      char* tmp_message = message;
+      message = NULL;
+      for(int i = 0; i < tg_attachments_count; i++){
+        char* type = tg_attachments[i].type;
+        cJSON* item = E(cJSON_CreateObject());
+        Z(!cJSON_AddItemToArray(media_array, item));
+        E(cJSON_AddStringToObject(item, "type", type));
+
+        Buffer$reset(&b);
+        Buffer$printf(&b, "attach://%s_%d", type, i);
+        cJSON* string = E(cJSON_AddStringToObject(item, "media", Buffer$toString(&b)));
+        tg_attachments[i].type = string->valuestring + 9;
+
+        if(i == tg_attachments_count - 1){
+          E(cJSON_AddStringToObject(item, "caption", tmp_message));
+        }
+      }
+      message = E(cJSON_Print(media_array));
+    }else{
+      text_name = "caption";
+      if(strcmp(tg_attachments[0].type, "photo") == 0){
+        method = "sendPhoto";
+      }else if(strcmp(tg_attachments[0].type, "audio") == 0){
+        method = "sendAudio";
+      }else if(strcmp(tg_attachments[0].type, "video") == 0){
+        method = "sendVideo";
+      }else{
+        method = "sendDocument";
+      }
+    }
+  }
+
+  cJSON_Delete(E(tgapiRequest(
+    method, token, tg_attachments,
+    "chat_id", destination,
+    text_name, message ?: "",
+    NULL
+  )));
+
+  retval = false;
+  finally:;
+  if(media_array){
+    cJSON_Delete(media_array);
+    free(message);
+  }
+  Buffer$delete(&b);
+  for(int i = 0; i < tg_attachments_count; i++){
+    free(tg_attachments[i].path);
+    tg_attachments[i] = (TelegramAttachment){0};
+  }
+  tg_attachments_count = 0;
+  return retval;
+}
+
 bool sendMsg(char* message, char* attachment){
+  if(telegram)return sendMsg_tg(message, attachment);
+
   char* t = getRandomId();
   cJSON* res = E(apiRequest(
     "messages.send", token, "peer_id", destination, "random_id", t,
@@ -77,7 +175,7 @@ char* parseDestination_cli(char* src){
 void parseArgv(int argc, char** argv){
   while(1){
     int optionIndex = 0;
-    int c = getopt_long(argc, argv, "hint:f:T:R:s::x:", longOptionRom, &optionIndex);
+    int c = getopt_long(argc, argv, "hGint:f:T:R:s::x:", longOptionRom, &optionIndex);
     if(c == -1)break;
     switch(c){
       case 0:
@@ -118,6 +216,11 @@ void parseArgv(int argc, char** argv){
       case 'i':
         printid = true;
         break;
+      case 'G':
+        telegram = true;
+        token = "rsstgtoken.txt";
+        destination = "927071893";
+        break;
       case 'h':
         printf(
           "Usage: send [options] <message>\n"
@@ -130,6 +233,7 @@ void parseArgv(int argc, char** argv){
           "  -x, --type <name>   File type (doc|photo|graffiti)\n"
           "  -s, --slurp[=file]  Read messages from file (or stdin)\n"
           "  -i, --printid       Print ids of the sent messages to stdout\n"
+          "  -G, --telegram      Send messages to Telegram instead of VK\n"
           "  -n, --notify        Equivalent to -T bottoken.txt -t " NUM(MY_ID) "\n"
           "  -h, --help          Output usage information\n"
           // "  -V, --version       output the version number\n"
@@ -208,7 +312,7 @@ int main(int argc, char** argv){
 
   if(message || filepath){
     Buffer b = Buffer$new();
-    if(filepath)free(Buffer$appendString(&b, E(uploadFile(filepath, filetype, destination, token))));
+    if(filepath)free(Buffer$appendString(&b, E(_uploadFile(filepath, filetype, destination, token))));
     Z(sendMsg(message, Buffer$toString(&b)));
     Buffer$delete(&b);
     free(message);

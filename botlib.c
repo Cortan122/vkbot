@@ -118,6 +118,30 @@ void waitForInternet(){
   fflush(stderr);
 }
 
+static Buffer _request_impl(char* url, int post, ...);
+static bool add_curl_mimepart(curl_mime* form, char* name, char* path){
+  curl_mimepart* field = E(curl_mime_addpart(form));
+  Z(curl_mime_name(field, name));
+
+  if(access(path, R_OK)){
+    if(!startsWith(path, "https://") && !startsWith(path, "http://")){
+      perror(path);
+      goto finally;
+    }
+    Buffer urlres = _request_impl(path, 0);
+    Z(urlres.len < 0);
+    Z(curl_mime_data(field, urlres.body, urlres.len));
+    Z(curl_mime_filename(field, guessAppropriateFilename(urlres.body)));
+    free(urlres.body);
+  }else{
+    Z(curl_mime_filedata(field, path));
+  }
+
+  return false;
+  finally:
+  return true;
+}
+
 static Buffer _request_impl(char* url, int post, ...){
   #ifdef LOG_REQUEST_TIMES
     struct timeval start;
@@ -146,20 +170,19 @@ static Buffer _request_impl(char* url, int post, ...){
     va_end(ap);
 
     form = E(curl_mime_init(curl));
-    curl_mimepart* field = E(curl_mime_addpart(form));
-    Z(curl_mime_name(field, name));
+    Z(add_curl_mimepart(form, name, path));
+    Z(curl_easy_setopt(curl, CURLOPT_MIMEPOST, form));
+  }else if(post == 3){
+    va_list ap;
+    va_start(ap, post);
+    TelegramAttachment* argv = E(va_arg(ap, TelegramAttachment*));
+    va_end(ap);
 
-    if(access(path, R_OK)){
-      if(!startsWith(path, "https://") && !startsWith(path, "http://")){
-        perror(path);
-        goto finally;
-      }
-      Buffer urlres = _request_impl(path, 0);
-      Z(urlres.len < 0);
-      Z(curl_mime_data(field, urlres.body, urlres.len));
-      Z(curl_mime_filename(field, guessAppropriateFilename(urlres.body)));
-    }else{
-      Z(curl_mime_filedata(field, path));
+    form = E(curl_mime_init(curl));
+    for(; argv->type; argv++){
+      char* name = argv->type;
+      char* path = argv->path;
+      Z(add_curl_mimepart(form, name, path));
     }
     Z(curl_easy_setopt(curl, CURLOPT_MIMEPOST, form));
   }
@@ -504,4 +527,93 @@ cJSON* gapiRequest(char* spreadsheetid, char* range, char* token){
 
   finally:
   return NULL;
+}
+
+cJSON* tgapiRequest(char* endpoint, char* token, TelegramAttachment* attachments, ...){
+  Buffer b = Buffer$new();
+  char* res = NULL;
+  cJSON* json = NULL;
+
+  Buffer$printf(&b, "https://api.telegram.org/bot%s/%s", E(findToken(token)), endpoint);
+
+  bool isFirst = true;
+  va_list ap;
+  va_start(ap, attachments);
+  while(1){
+    char* v1 = va_arg(ap, char*);
+    if(v1 == NULL)break; // yay у нас кончились все аргументы
+    char* v2 = E(va_arg(ap, char*));
+    Buffer$appendChar(&b, isFirst?'?':'&');
+    Buffer$appendString(&b, v1);
+    Buffer$appendChar(&b, '=');
+    curl_free(Buffer$appendString(&b, E(curl_easy_escape(NULL, v2, 0))));
+    isFirst = false;
+  }
+  va_end(ap);
+
+  char* url = Buffer$toString(&b);
+  if(attachments && attachments[0].path){
+    res = E(_request_impl(url, 3, attachments).body);
+  }else{
+    res = E(_request_impl(url, 0).body);
+  }
+
+  Buffer$delete(&b);
+  json = E(cJSON_Parse(res));
+  free(res);
+  res = NULL;
+
+  bool err = E(cJSON_GetObjectItem(json, "ok"))->type == cJSON_False;
+  if(err){
+    Z(printJson(json));
+    fflush(stdout);
+    goto finally;
+  }else{
+    cJSON* response = E(cJSON_DetachItemFromObjectCaseSensitive(json, "result"));
+    cJSON_Delete(json);
+    return response;
+  }
+
+  finally:
+  free(res);
+  Buffer$delete(&b);
+  cJSON_Delete(json);
+  return NULL;
+}
+
+void tglongpoll(char* token, JSONCallback callback){
+  cJSON* res = NULL;
+  int64_t offset = 0;
+  Buffer b = Buffer$new();
+
+  while(true){
+    Buffer$reset(&b);
+    Buffer$printf(&b, "%ld", offset);
+    res = E(tgapiRequest(
+      "getUpdates", token, NULL,
+      "timeout", "1000",
+      "offset", Buffer$toString(&b),
+      "allowed_updates", "[\"message\", \"edited_message\"]",
+      NULL
+    ));
+
+    if(cJSON_GetArraySize(res))offset = -1;
+
+    cJSON* update;
+    cJSON_ArrayForEach(update, res){
+      int64_t id = getNumber(update, "update_id");
+      if(offset < id)offset = id+1;
+
+      if(cJSON_GetObjectItem(update, "message")){
+        callback(cJSON_GetObjectItem(update, "message"));
+      }else if(cJSON_GetObjectItem(update, "edited_message")){
+        callback(cJSON_GetObjectItem(update, "edited_message"));
+      }
+    }
+  }
+
+  finally:
+  Buffer$delete(&b);
+  cJSON_Delete(res);
+  return;
 }

@@ -31,6 +31,15 @@ char* getRandomId();
 
 cJSON* gapiRequest(char* spreadsheetid, char* range, char* token);
 
+typedef struct TelegramAttachment {
+  char* type;
+  char* path;
+} TelegramAttachment;
+
+#define getNumber(json, name) (int64_t)E(cJSON_GetObjectItem(json, name))->valuedouble
+cJSON* tgapiRequest(char* endpoint, char* token, TelegramAttachment* attachments, ...);
+void tglongpoll(char* token, JSONCallback callback);
+
 extern volatile sig_atomic_t longpollFlag;
 
 #define sendMessage(token, peer_id, ...) ({ \

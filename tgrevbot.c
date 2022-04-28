@@ -7,84 +7,6 @@
 #include "botlib.h"
 #include "extralib.h"
 
-#define getNumber(json, name) (int64_t)E(cJSON_GetObjectItem(json, name))->valuedouble
-
-cJSON* tgapiRequest(char* endpoint, char* token, ...){
-  Buffer b = Buffer$new();
-  Buffer$printf(&b, "https://api.telegram.org/bot%s/%s", E(findToken(token)), endpoint);
-
-  bool isFirst = true;
-  va_list ap;
-  va_start(ap, token);
-  while(1){
-    char* v1 = va_arg(ap, char*);
-    if(v1 == NULL)break; // yay у нас кончились все аргументы
-    char* v2 = E(va_arg(ap, char*));
-    Buffer$appendChar(&b, isFirst?'?':'&');
-    Buffer$appendString(&b, v1);
-    Buffer$appendChar(&b, '=');
-    curl_free(Buffer$appendString(&b, E(curl_easy_escape(NULL, v2, 0))));
-    isFirst = false;
-  }
-  va_end(ap);
-
-  char* res = E(request(Buffer$toString(&b)));
-  Buffer$delete(&b);
-  cJSON* json = E(cJSON_Parse(res));
-  free(res);
-
-  bool err = E(cJSON_GetObjectItem(json, "ok"))->type == cJSON_False;
-  if(err){
-    Z(printJson(json));
-    fflush(stdout);
-    cJSON_Delete(json);
-    return NULL;
-  }else{
-    cJSON* response = E(cJSON_DetachItemFromObjectCaseSensitive(json, "result"));
-    cJSON_Delete(json);
-    return response;
-  }
-
-  finally:
-  return NULL;
-}
-
-void tglongpoll(char* token, JSONCallback callback){
-  cJSON* res = NULL;
-  int64_t offset = 0;
-  Buffer b = Buffer$new();
-
-  while(true){
-    Buffer$reset(&b);
-    Buffer$printf(&b, "%ld", offset);
-    res = E(tgapiRequest("getUpdates", token,
-      "timeout", "1000",
-      "offset", Buffer$toString(&b),
-      "allowed_updates", "[\"message\", \"edited_message\"]",
-      NULL
-    ));
-
-    if(cJSON_GetArraySize(res))offset = -1;
-
-    cJSON* update;
-    cJSON_ArrayForEach(update, res){
-      int64_t id = getNumber(update, "update_id");
-      if(offset < id)offset = id+1;
-
-      if(cJSON_GetObjectItem(update, "message")){
-        callback(cJSON_GetObjectItem(update, "message"));
-      }else if(cJSON_GetObjectItem(update, "edited_message")){
-        callback(cJSON_GetObjectItem(update, "edited_message"));
-      }
-    }
-  }
-
-  finally:
-  Buffer$delete(&b);
-  cJSON_Delete(res);
-  return;
-}
-
 char* rev_commands[] = {"/rev@rev122_bot", "/rev", "/рев", "/кум", "\\rev", "\\рев", "\\кум", ".кум", NULL};
 
 cJSON* lastmsg_db = NULL;
@@ -145,8 +67,8 @@ void callback(cJSON* json){
   }
 
   if(response && reply_to_message_id){
-    cJSON_free(E(tgapiRequest(
-      "sendMessage", "tgtoken.txt",
+    cJSON_Delete(E(tgapiRequest(
+      "sendMessage", "tgtoken.txt", NULL,
       "chat_id", Buffer$toString(&b),
       "text", response,
       "reply_to_message_id", reply_to_message_id,
@@ -154,8 +76,8 @@ void callback(cJSON* json){
       NULL
     )));
   }else if(response){
-    cJSON_free(E(tgapiRequest(
-      "sendMessage", "tgtoken.txt",
+    cJSON_Delete(E(tgapiRequest(
+      "sendMessage", "tgtoken.txt", NULL,
       "chat_id", Buffer$toString(&b),
       "text", response,
       NULL
