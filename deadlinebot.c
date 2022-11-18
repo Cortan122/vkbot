@@ -21,6 +21,7 @@
 #define SHLEX "2000000001"
 
 char* attachment = NULL;
+cJSON* table = NULL;
 
 const char* month_rom[] = {
   "января", "февраля", "марта", "апреля", "мая", "июня", "июля", "августа", "сентября", "октября", "ноября", "декабря"
@@ -46,12 +47,23 @@ char* russianPluralHours(int hours){
   return russianPluralForm(hours, "час", "часа", "часов");
 }
 
-int proccesLine(cJSON* line, Buffer* b){
+int proccesLine(cJSON* line, Buffer* b, const char* mask){
   int prevlen = b->len;
 
   if(cJSON_GetArraySize(line) == 0){
-    Buffer$appendChar(b, '\n');
+    if(!Buffer$endsWith(b, "\n\n")){
+      Buffer$appendChar(b, '\n');
+    }
     return 0;
+  }
+
+  if(cJSON_GetArraySize(line) == 3){
+    char* mask2 = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(line, 2))));
+    if(mask[0] == '!'){
+      if(strcmp(mask+1, mask2) == 0)return 0;
+    }else{
+      if(strcmp(mask, mask2) != 0)return 0;
+    }
   }
 
   char* str = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(line, 0))));
@@ -87,7 +99,7 @@ int proccesLine(cJSON* line, Buffer* b){
     return 0;
   }
 
-  Z(cJSON_GetArraySize(line) != 2);
+  Z(cJSON_GetArraySize(line) > 3);
 
   char* timestr = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(line, 1))));
   int charCount = 0;
@@ -168,24 +180,23 @@ void sortAdjacentDeadlines(cJSON** arr){
   }
 }
 
-char* getMessage(){
+char* getMessage(const char* mask){
   Buffer b = Buffer$new();
-  cJSON* table = NULL;
-  table = E(gapiRequest("1HTom_rLaBVQFYkWGJWEM8v1HQSZj5pHkrUDbpYVtH1g", "Лист1!A2:B", NULL));
-  printJson(table);
+  if(table == NULL){
+    table = E(gapiRequest("1HTom_rLaBVQFYkWGJWEM8v1HQSZj5pHkrUDbpYVtH1g", "Лист1!A2:C", NULL));
+    printJson(table);
+  }
 
   cJSON** contiguousArray = calloc(cJSON_GetArraySize(table)+1, sizeof(cJSON*));
   cJSON* line;
   int i = 0;
   cJSON_ArrayForEach(line, table)contiguousArray[i++] = line;
   sortAdjacentDeadlines(contiguousArray);
-  for(cJSON** arr = contiguousArray; *arr; arr++)proccesLine(*arr, &b);
+  for(cJSON** arr = contiguousArray; *arr; arr++)proccesLine(*arr, &b, mask);
   free(contiguousArray);
 
-  cJSON_Delete(table);
   return Buffer$toString(&b);
   finally:
-  cJSON_Delete(table);
   Buffer$delete(&b);
   return NULL;
 }
@@ -261,13 +272,34 @@ int pinLastMessage(char* chat){
   return 1;
 }
 
+int sendMessage_tg(char* token, char* destination, char* mask){
+  int retval = 1;
+  char* res = NULL;
+  res = E(getMessage(mask));
+
+  cJSON_Delete(E(tgapiRequest(
+    "sendMessage", token, NULL,
+    "chat_id", destination,
+    "text", res,
+    NULL
+  )));
+
+  retval = 0;
+  finally:
+  free(res);
+  return retval;
+}
+
 int main(int argc, char** argv){
+  int retval = 1;
+
   if(!isLastMessageBotted(SHLEX, "token.txt")){
-    char* res = E(getMessage());
+    char* res = E(getMessage("Шлекс"));
     printf("%s", res);
     if(argc == 2 && strcmp(argv[1], "--preview") == 0){
       free(res);
-      return 0;
+      retval = 0;
+      goto finally;
     }
 
     sendMessage("bottoken.txt", SHLEX, "message", res, "attachment", attachment ?: "");
@@ -280,9 +312,16 @@ int main(int argc, char** argv){
     printf("the last message is also botted at %s\n", getTimeString());
   }
 
-  free(attachment);
+  if(!(argc == 2 && strcmp(argv[1], "--no-tg") == 0)){
+    Z(sendMessage_tg("rsstgtoken.txt", "-706868974", "!Шлекс"));
+    Z(sendMessage_tg("rsstgtoken.txt", "885786094", "Амина"));
+    Z(sendMessage_tg("rsstgtoken.txt", "927071893", "Котя"));
+    Z(sendMessage_tg("rsstgtoken.txt", "858963591", "Егор"));
+  }
 
-  return 0;
+  retval = 0;
   finally:
-  return 1;
+  free(attachment);
+  cJSON_Delete(table);
+  return retval;
 }

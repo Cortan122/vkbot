@@ -146,5 +146,5 @@ void Buffer$puts(Buffer* b){
 int Buffer$endsWith(Buffer* b, char* needle){
   int len = strlen(needle);
   if(b->len < len)return 0;
-  return strcmp(needle, b->body + b->len-len) == 0;
+  return strncmp(needle, b->body + b->len-len, len) == 0;
 }
