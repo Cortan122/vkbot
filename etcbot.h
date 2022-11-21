@@ -44,6 +44,7 @@ void read_command(ParsedCommand* cmd);
 void stats_command(ParsedCommand* cmd);
 void friend_command(ParsedCommand* cmd);
 void ded_command(ParsedCommand* cmd);
+void ded_tg_command(ParsedCommand* cmd);
 void tgrestart_command(ParsedCommand* cmd);
 void wifirestart_command(ParsedCommand* cmd);
 void email_command(ParsedCommand* cmd);

@@ -59,7 +59,10 @@ int proccesLine(cJSON* line, Buffer* b, const char* mask){
 
   if(cJSON_GetArraySize(line) == 3){
     char* mask2 = E(cJSON_GetStringValue(E(cJSON_GetArrayItem(line, 2))));
-    if(mask[0] == '!'){
+    if(startsWith(mask2, "only")){
+      if(mask[0] == '!')return 0;
+      if(strcmp(mask, mask2+4) != 0)return 0;
+    }else if(mask[0] == '!'){
       if(strcmp(mask+1, mask2) == 0)return 0;
     }else{
       if(strcmp(mask, mask2) != 0)return 0;
@@ -293,10 +296,25 @@ int sendMessage_tg(char* token, char* destination, char* mask){
 int main(int argc, char** argv){
   int retval = 1;
 
-  if(!isLastMessageBotted(SHLEX, "token.txt")){
+  bool preview = false;
+  bool no_tg = false;
+  bool no_vk = false;
+  for(int i = 1; i < argc; i++){
+    if(strcmp(argv[i], "--preview") == 0){
+      preview = true;
+    }else if(strcmp(argv[i], "--no-tg") == 0){
+      no_tg = true;
+    }else if(strcmp(argv[i], "--no-vk") == 0){
+      no_vk = true;
+    }
+  }
+
+  if(no_vk){
+    printf("running in tg only mode!\n");
+  }else if(!isLastMessageBotted(SHLEX, "token.txt")){
     char* res = E(getMessage("Шлекс"));
     printf("%s", res);
-    if(argc == 2 && strcmp(argv[1], "--preview") == 0){
+    if(preview){
       free(res);
       retval = 0;
       goto finally;
@@ -312,7 +330,7 @@ int main(int argc, char** argv){
     printf("the last message is also botted at %s\n", getTimeString());
   }
 
-  if(!(argc == 2 && strcmp(argv[1], "--no-tg") == 0)){
+  if(!no_tg){
     Z(sendMessage_tg("rsstgtoken.txt", "-706868974", "!Шлекс"));
     Z(sendMessage_tg("rsstgtoken.txt", "885786094", "Амина"));
     Z(sendMessage_tg("rsstgtoken.txt", "927071893", "Котя"));

@@ -20,6 +20,7 @@ const Command rom[] = {
   { "token.txt", "/стат", stats_command, NULL, NULL },
   { "token.txt", "/friend", friend_command, NULL, NULL },
   { "token.txt", "/ded", ded_command, NULL, NULL },
+  { "token.txt", "/ded_tg", ded_tg_command, NULL, NULL },
   { "token.txt", "/дед", ded_command, NULL, NULL },
   { "token.txt", "/tgrestart", tgrestart_command, NULL, NULL },
   { "token.txt", "/wifirestart", wifirestart_command, NULL, NULL },

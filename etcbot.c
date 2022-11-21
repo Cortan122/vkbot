@@ -165,6 +165,11 @@ void ded_command(ParsedCommand* cmd){
   system("./deadlinebot &"); // todo
 }
 
+void ded_tg_command(ParsedCommand* cmd){
+  if(cmd->user != 77662058 && cmd->user != 234288523)PRIVATE_COMMAND(cmd);
+  system("./deadlinebot --no-vk &"); // todo
+}
+
 void tgrestart_command(ParsedCommand* cmd){
   PRIVATE_COMMAND(cmd);
   system("killall telegram-cli; rm ~/.telegram-cli/state && ~/vk/c/cronbot"); // todo
