@@ -168,6 +168,7 @@ void sortAdjacentDeadlines(cJSON** arr){
   int startIndex = -1;
 
   for(int i = 0; arr[i]; i++){
+    // todo: fix logic and account for size == 3
     int size = cJSON_GetArraySize(arr[i]);
     if(size == 0){
       if(startIndex != -1){
@@ -331,7 +332,7 @@ int main(int argc, char** argv){
   }
 
   if(!no_tg){
-    Z(sendMessage_tg("rsstgtoken.txt", "-706868974", "!Шлекс"));
+    // Z(sendMessage_tg("rsstgtoken.txt", "-706868974", "!Шлекс"));
     Z(sendMessage_tg("rsstgtoken.txt", "885786094", "Амина"));
     Z(sendMessage_tg("rsstgtoken.txt", "927071893", "Котя"));
     Z(sendMessage_tg("rsstgtoken.txt", "858963591", "Егор"));
